@@ -13,10 +13,13 @@ import { css } from "emotion";
 import { /* useCMA, */ useSDK } from "@contentful/react-apps-toolkit";
 
 export interface AppInstallationParameters {
+  siteName: string;
+  siteTagline: string;
   siteDescription: string;
   siteImage: string;
-  siteName: string;
   siteTwitterHandle: string;
+  themeBrandColor: string;
+  themeBackgroundColor: string;
 }
 
 interface ImmutableRefObject<T> {
@@ -39,9 +42,12 @@ function useInputValueWithRef(initialState?: string | (() => string)): [ Immutab
 
 const ConfigScreen = () => {
   const [siteNameRef, setSiteName, siteNameOnChange] = useInputValueWithRef();
+  const [siteTaglineRef, setSiteTagline, siteTaglineOnChange] = useInputValueWithRef();
   const [siteDescriptionRef, setSiteDescription, siteDescriptionOnChange] = useInputValueWithRef();
   const [siteImageRef, setSiteImage, siteImageOnChange] = useInputValueWithRef();
   const [siteTwitterHandleRef, setSiteTwitterHandle, siteTwitterHandleOnChange] = useInputValueWithRef();
+  const [themeBrandColorRef, setThemeBrandColor, themeBrandColorOnChange] = useInputValueWithRef();
+  const [themeBackgroundColorRef, setThemeBackgroundColor, themeBackgroundColorOnChange] = useInputValueWithRef();
 
   const sdk = useSDK<AppExtensionSDK>();
   /*
@@ -52,10 +58,13 @@ const ConfigScreen = () => {
 
   const setParameters = useCallback(( parameters: AppInstallationParameters) => {
     setSiteName(parameters.siteName);
+    setSiteTagline(parameters.siteTagline);
     setSiteDescription(parameters.siteDescription);
     setSiteImage(parameters.siteImage);
     setSiteTwitterHandle(parameters.siteTwitterHandle);
-  }, [setSiteDescription, setSiteImage, setSiteName, setSiteTwitterHandle]);
+    setThemeBrandColor(parameters.themeBrandColor);
+    setThemeBackgroundColor(parameters.themeBackgroundColor);
+  }, [setSiteDescription, setSiteImage, setSiteName, setSiteTagline, setSiteTwitterHandle, setThemeBackgroundColor, setThemeBrandColor]);
 
   const onConfigure = useCallback(async () => {
     // This method will be called when a user clicks on "Install"
@@ -68,9 +77,12 @@ const ConfigScreen = () => {
 
     const parameters: AppInstallationParameters = {
       siteName: siteNameRef.current,
+      siteTagline: siteTaglineRef.current,
       siteDescription: siteDescriptionRef.current,
       siteImage: siteImageRef.current,
       siteTwitterHandle: siteTwitterHandleRef.current,
+      themeBrandColor: themeBrandColorRef.current,
+      themeBackgroundColor: themeBackgroundColorRef.current,
     };
 
     return {
@@ -80,7 +92,7 @@ const ConfigScreen = () => {
       // locations, you can just pass the currentState as is
       targetState: currentState,
     };
-  }, [sdk.app, siteDescriptionRef, siteImageRef, siteNameRef, siteTwitterHandleRef]);
+  }, [sdk.app, siteDescriptionRef, siteImageRef, siteNameRef, siteTaglineRef, siteTwitterHandleRef, themeBackgroundColorRef, themeBrandColorRef]);
 
   useEffect(() => {
     // `onConfigure` allows to configure a callback to be
@@ -131,6 +143,17 @@ const ConfigScreen = () => {
           </Flex>
         </FormControl>
         <FormControl isRequired>
+          <FormControl.Label htmlFor="siteTagline">Site Twitter Handle</FormControl.Label>
+          <TextInput id="siteTagline" type="text" value={siteTaglineRef.current} onChange={siteTaglineOnChange} />
+          <Flex justifyContent="space-between">
+            <FormControl.HelpText>
+              The tagline is a short description of the website, which is used together with siteName
+              when as a long-form version of the name of the website.
+            </FormControl.HelpText>
+            <FormControl.Counter />
+          </Flex>
+        </FormControl>
+        <FormControl isRequired>
           <FormControl.Label htmlFor="siteDescription">Site Description</FormControl.Label>
           <TextInput id="siteDescription" type="text" value={siteDescriptionRef.current} onChange={siteDescriptionOnChange} maxLength={200} />
           <Flex justifyContent="space-between">
@@ -158,6 +181,28 @@ const ConfigScreen = () => {
           <Flex justifyContent="space-between">
             <FormControl.HelpText>
               This is the Twitter handle of the website, including the @ symbol.
+            </FormControl.HelpText>
+            <FormControl.Counter />
+          </Flex>
+        </FormControl>
+        <Heading>Theming</Heading>
+        <FormControl isRequired>
+          <FormControl.Label htmlFor="themeBrandColor">Site Brand Color</FormControl.Label>
+          <TextInput id="themeBrandColor" type="text" value={themeBrandColorRef.current} onChange={themeBrandColorOnChange} />
+          <Flex justifyContent="space-between">
+            <FormControl.HelpText>
+              This is the brand color of the website, which will be used for
+              buttons and other UI elements, and in the SEO metadata
+            </FormControl.HelpText>
+            <FormControl.Counter />
+          </Flex>
+        </FormControl>
+        <FormControl isRequired>
+          <FormControl.Label htmlFor="themeBackgroundColor">UI background color</FormControl.Label>
+          <TextInput id="themeBackgroundColor" type="text" value={themeBackgroundColorRef.current} onChange={themeBackgroundColorOnChange} />
+          <Flex justifyContent="space-between">
+            <FormControl.HelpText>
+              The background color of the website body element. Also what's reported to search engines and browsers as the theme background color.
             </FormControl.HelpText>
             <FormControl.Counter />
           </Flex>

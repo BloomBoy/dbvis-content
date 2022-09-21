@@ -143,7 +143,7 @@ const ConfigScreen = () => {
           </Flex>
         </FormControl>
         <FormControl isRequired>
-          <FormControl.Label htmlFor="siteTagline">Site Twitter Handle</FormControl.Label>
+          <FormControl.Label htmlFor="siteTagline">Site Tagline</FormControl.Label>
           <TextInput id="siteTagline" type="text" value={siteTaglineRef.current} onChange={siteTaglineOnChange} />
           <Flex justifyContent="space-between">
             <FormControl.HelpText>

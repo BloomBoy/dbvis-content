@@ -18,8 +18,6 @@ export interface AppInstallationParameters {
   siteDescription: string;
   siteImage: string;
   siteTwitterHandle: string;
-  themeBrandColor: string;
-  themeBackgroundColor: string;
 }
 
 interface ImmutableRefObject<T> {
@@ -46,8 +44,6 @@ const ConfigScreen = () => {
   const [siteDescriptionRef, setSiteDescription, siteDescriptionOnChange] = useInputValueWithRef();
   const [siteImageRef, setSiteImage, siteImageOnChange] = useInputValueWithRef();
   const [siteTwitterHandleRef, setSiteTwitterHandle, siteTwitterHandleOnChange] = useInputValueWithRef();
-  const [themeBrandColorRef, setThemeBrandColor, themeBrandColorOnChange] = useInputValueWithRef();
-  const [themeBackgroundColorRef, setThemeBackgroundColor, themeBackgroundColorOnChange] = useInputValueWithRef();
 
   const sdk = useSDK<AppExtensionSDK>();
   /*
@@ -62,9 +58,7 @@ const ConfigScreen = () => {
     setSiteDescription(parameters.siteDescription);
     setSiteImage(parameters.siteImage);
     setSiteTwitterHandle(parameters.siteTwitterHandle);
-    setThemeBrandColor(parameters.themeBrandColor);
-    setThemeBackgroundColor(parameters.themeBackgroundColor);
-  }, [setSiteDescription, setSiteImage, setSiteName, setSiteTagline, setSiteTwitterHandle, setThemeBackgroundColor, setThemeBrandColor]);
+  }, [setSiteDescription, setSiteImage, setSiteName, setSiteTagline, setSiteTwitterHandle]);
 
   const onConfigure = useCallback(async () => {
     // This method will be called when a user clicks on "Install"
@@ -81,8 +75,6 @@ const ConfigScreen = () => {
       siteDescription: siteDescriptionRef.current,
       siteImage: siteImageRef.current,
       siteTwitterHandle: siteTwitterHandleRef.current,
-      themeBrandColor: themeBrandColorRef.current,
-      themeBackgroundColor: themeBackgroundColorRef.current,
     };
 
     return {
@@ -92,7 +84,7 @@ const ConfigScreen = () => {
       // locations, you can just pass the currentState as is
       targetState: currentState,
     };
-  }, [sdk.app, siteDescriptionRef, siteImageRef, siteNameRef, siteTaglineRef, siteTwitterHandleRef, themeBackgroundColorRef, themeBrandColorRef]);
+  }, [sdk.app, siteDescriptionRef, siteImageRef, siteNameRef, siteTaglineRef, siteTwitterHandleRef]);
 
   useEffect(() => {
     // `onConfigure` allows to configure a callback to be
@@ -181,28 +173,6 @@ const ConfigScreen = () => {
           <Flex justifyContent="space-between">
             <FormControl.HelpText>
               This is the Twitter handle of the website, including the @ symbol.
-            </FormControl.HelpText>
-            <FormControl.Counter />
-          </Flex>
-        </FormControl>
-        <Heading>Theming</Heading>
-        <FormControl isRequired>
-          <FormControl.Label htmlFor="themeBrandColor">Site Brand Color</FormControl.Label>
-          <TextInput id="themeBrandColor" type="text" value={themeBrandColorRef.current} onChange={themeBrandColorOnChange} />
-          <Flex justifyContent="space-between">
-            <FormControl.HelpText>
-              This is the brand color of the website, which will be used for
-              buttons and other UI elements, and in the SEO metadata
-            </FormControl.HelpText>
-            <FormControl.Counter />
-          </Flex>
-        </FormControl>
-        <FormControl isRequired>
-          <FormControl.Label htmlFor="themeBackgroundColor">UI background color</FormControl.Label>
-          <TextInput id="themeBackgroundColor" type="text" value={themeBackgroundColorRef.current} onChange={themeBackgroundColorOnChange} />
-          <Flex justifyContent="space-between">
-            <FormControl.HelpText>
-              The background color of the website body element. Also what's reported to search engines and browsers as the theme background color.
             </FormControl.HelpText>
             <FormControl.Counter />
           </Flex>

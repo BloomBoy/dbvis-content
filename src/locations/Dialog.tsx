@@ -1,16 +1,506 @@
-import React from 'react';
-import { Paragraph } from '@contentful/f36-components';
-import { DialogExtensionSDK } from '@contentful/app-sdk';
-import { /* useCMA, */ useSDK } from '@contentful/react-apps-toolkit';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Box, Button, Heading, Paragraph, Stack } from '@contentful/f36-components';
+import {
+  ContentTypeAPI,
+  DialogExtensionSDK,
+  EntryFieldInfo,
+  FieldExtensionSDK,
+  IdsAPI,
+  SerializedJSONValue,
+} from '@contentful/app-sdk';
+import { useCMA, useSDK } from '@contentful/react-apps-toolkit';
+import useCustomSDK from '../hooks/useCustomSdk';
+import {
+  AppProps,
+  FullLayoutProps,
+  LayoutContainerDataByTypeName,
+  LayoutDataByTypeName,
+  layouts,
+  LayoutTypeDef,
+  LayoutTypeDefByTypeName,
+  LayoutTypeName,
+  StoredLayoutData,
+  StoredLayoutDataByTypeName,
+  StoredLayoutEntity,
+} from '../LayoutTypeDefinitions';
+import { DefaultModal } from '../components/LayoutEditor';
+import { fromEntries } from '../utils/objects';
+import { css } from 'emotion';
+import tokens from '@contentful/f36-tokens';
+
+type OptionalIds = Exclude<keyof IdsAPI, keyof DialogExtensionSDK['ids']>;
+
+type Ids = DialogExtensionSDK['ids'] & {
+  [key in OptionalIds]?: IdsAPI[key];
+};
+
+type PageLayoutEditorDialogueProps = {
+  sdk: DialogExtensionSDK;
+  locale: string;
+  layout: string;
+};
+
+type FullPageProps<LayotType extends LayoutTypeName> = {
+  [key in LayoutTypeName]: {
+    layoutDefinition: LayoutTypeDef<
+      LayoutDataByTypeName<key>,
+      LayoutContainerDataByTypeName<key>,
+      key
+    >;
+    layout: StoredLayoutData<
+      LayoutDataByTypeName<key>,
+      LayoutContainerDataByTypeName<key>,
+      key
+    >;
+  };
+}[LayoutTypeName] & {
+  sdk: FieldExtensionSDK;
+  layoutIndex: number;
+  layouts: StoredLayoutEntity[];
+  setValue: (
+    newVal: StoredLayoutEntity[],
+  ) => Promise<SerializedJSONValue | undefined>;
+  onRemove: () => Promise<unknown>;
+};
+
+const styles = {
+  editorWrapper: css({
+    paddingTop: '40px',
+  }),
+  editorFooter: css({
+    position: "fixed",
+    top: 0,
+    right: 0,
+    left: 0,
+    width: '100%',
+    backgroundColor: tokens.colorWhite,
+    borderBottom: `1px solid ${tokens.gray200}`,
+  }),
+};
+
+function RenderFullPage<LayoutType extends LayoutTypeName>(
+  props: FullPageProps<LayoutType>,
+) {
+  const { sdk, layout, layoutDefinition, onRemove, layoutIndex } = props;
+  const dialogueSdk = useSDK<DialogExtensionSDK>();
+  const propsRef = useRef(props);
+  propsRef.current = props;
+
+  const RenderModal = (
+    layoutDefinition.renderModal == null ||
+    layoutDefinition.renderModal === true
+      ? DefaultModal
+      : layoutDefinition.renderModal
+  ) as
+    | React.ComponentType<
+        FullLayoutProps<
+          LayoutDataByTypeName<LayoutType>,
+          LayoutContainerDataByTypeName<LayoutType>,
+          LayoutType
+        >
+      >
+    | false;
+
+  const wrappedSetValue = useCallback(
+    (newVal: StoredLayoutDataByTypeName<LayoutType>) => {
+      const { layouts, setValue, layoutIndex } = propsRef.current;
+      const newLayouts = [...layouts];
+      newLayouts[layoutIndex] = newVal;
+      return setValue(newLayouts);
+    },
+    [],
+  );
+
+  const removeValue = useCallback(async () => {
+    await onRemove();
+    return undefined;
+  }, [onRemove]);
+
+  const save = useCallback(() => {
+    dialogueSdk.close(layout);
+  }, [dialogueSdk, layout]);
+
+  const close = useCallback(() => {
+    dialogueSdk.close();
+  }, [dialogueSdk]);
+
+
+  if (!RenderModal) {
+    return <Paragraph>This layout type cannot be edited</Paragraph>;
+  }
+
+  const appProps: AppProps<
+    LayoutDataByTypeName<LayoutType>,
+    LayoutContainerDataByTypeName<LayoutType>,
+    LayoutType
+  > = {
+    setValue: wrappedSetValue,
+    setImmediateValue: wrappedSetValue,
+    sdk,
+    index: layoutIndex,
+    definition: layoutDefinition as LayoutTypeDef<
+      LayoutDataByTypeName<LayoutType>,
+      LayoutContainerDataByTypeName<LayoutType>,
+      LayoutType
+    >,
+    removeValue,
+  };
+
+  const fullLayoutProps: FullLayoutProps<
+    LayoutDataByTypeName<LayoutType>,
+    LayoutContainerDataByTypeName<LayoutType>,
+    LayoutType
+  > = {
+    ...(layout as StoredLayoutData<
+      LayoutDataByTypeName<LayoutType>,
+      LayoutContainerDataByTypeName<LayoutType>,
+      LayoutType
+    >),
+    ...appProps,
+  };
+
+
+  let title: string;
+  if (layoutDefinition.title == null) {
+    title = '';
+  } else if (typeof layoutDefinition.title === 'function') {
+    title = layoutDefinition.title(layout as any) || '';
+  } else {
+    title =
+      (layout.data[layoutDefinition.title] != null &&
+        String(layout.data[layoutDefinition.title])) ||
+      '';
+  }
+  title = title || `${layoutDefinition.name || layout.type}(${layout.id})`;
+
+  return (
+    <Box className={styles.editorWrapper}>
+      <RenderModal {...fullLayoutProps} />
+      <Stack className={styles.editorFooter} alignItems="center" justifyContent="space-between" padding="spacingS">
+        <Heading as="h2" margin="none">
+          {title}
+        </Heading>
+        <Stack>
+          <Button variant="negative" onClick={close}>Discard changes</Button>
+          <Button variant="primary" onClick={save}>Done</Button>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+function PageLayoutEditorDialogue({
+  sdk,
+  layout: layoutId,
+}: Omit<PageLayoutEditorDialogueProps, 'sdk'> & {
+  sdk: FieldExtensionSDK;
+}) {
+  const dialogueSdk = useSDK<DialogExtensionSDK>();
+  const dialogueSdkRef = useRef(dialogueSdk);
+  dialogueSdkRef.current = dialogueSdk;
+
+  const [fieldValue, setFieldValue] = useState<StoredLayoutEntity[]>(
+    sdk.field.getValue() ?? [],
+  );
+
+  useEffect(() => {
+    return sdk.field.onValueChanged(setFieldValue);
+  }, [sdk.field]);
+
+  const fieldvalueRef = useRef(fieldValue);
+  fieldvalueRef.current = fieldValue;
+
+  const layoutIndex =
+    fieldValue.findIndex((layout) => layout.id === layoutId) ?? -1;
+  const layoutIndexRef = useRef(layoutIndex);
+  layoutIndexRef.current = layoutIndex;
+  const layout = fieldValue[layoutIndex] as StoredLayoutEntity | undefined;
+
+  const setValue = useCallback((newVal: StoredLayoutEntity[]) => {
+    setFieldValue(newVal);
+    return Promise.resolve(newVal as unknown as SerializedJSONValue);
+  }, []);
+
+  console.log({ fieldValue, layoutIndex, layout, layoutId });
+
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+
+  const handleOnRemove = useCallback(() => {
+    if (layoutRef.current == null) return Promise.resolve(undefined);
+    const layoutDef = layouts[
+      layoutRef.current.type
+    ] as LayoutTypeDefByTypeName<typeof layoutRef.current.type>;
+    let title: string;
+    if (layoutDef.title == null) {
+      title = '';
+    } else if (typeof layoutDef.title === 'function') {
+      title = layoutDef.title(layoutRef.current as any) || '';
+    } else {
+      title =
+        (layoutRef.current.data[layoutDef.title] != null &&
+          String(layoutRef.current.data[layoutDef.title])) ||
+        '';
+    }
+    title =
+      title ||
+      `${layoutDef.name || layoutRef.current.type}(${layoutRef.current.id})`;
+    return dialogueSdkRef.current.dialogs
+      .openConfirm({
+        message: `This will delete the layout '${title}' and any configuration and any components defined within. Reusable components are defined elsewhere and only imported. They will still be available to other layouts.`,
+        intent: 'negative',
+        confirmLabel: 'Delete layout',
+        title: 'Delete layout?',
+      })
+      .then((shouldRemove) => {
+        if (shouldRemove) {
+          dialogueSdkRef.current.close('DELETE');
+        }
+        return undefined;
+      });
+  }, []);
+
+  if (layout == null) {
+    return <Paragraph>Unable to load field</Paragraph>;
+  }
+
+  const childLayoutProps = {
+    layoutDefinition: layouts[layout.type],
+    layout,
+  } as {
+    [key in LayoutTypeName]: {
+      layoutDefinition: LayoutTypeDef<
+        LayoutDataByTypeName<key>,
+        LayoutContainerDataByTypeName<key>,
+        key
+      >;
+      layout: StoredLayoutData<
+        LayoutDataByTypeName<key>,
+        LayoutContainerDataByTypeName<key>,
+        key
+      >;
+    };
+  }[LayoutTypeName];
+
+  const childProps = {
+    ...childLayoutProps,
+    layouts: fieldValue,
+    sdk,
+    setValue,
+    layoutIndex,
+    onRemove: handleOnRemove,
+  };
+
+  return <RenderFullPage {...childProps} />;
+}
+
+function PageLayoutEditorDialogueLoader(props: PageLayoutEditorDialogueProps) {
+  const { sdk, locale } = props;
+  const cma = useCMA();
+  const customSdk = useCustomSDK();
+
+  const sdkIds: Ids = sdk.ids;
+
+  const [error, setError] = useState<Error | null>(null);
+
+  const {
+    space: spaceId,
+    environment: environmentId,
+    contentType: contentTypeId,
+    entry: entryId,
+    field: fieldId,
+  } = sdkIds;
+
+  const [recoveredFieldSDK, setRecoveredFieldSDK] =
+    useState<FieldExtensionSDK>();
+
+  useEffect(() => {
+    if (contentTypeId == null || entryId == null || fieldId == null) {
+      setError(new Error('Missing required parameters'));
+      return;
+    }
+    setError(null);
+    let mounted = true;
+    Promise.all([
+      cma.entry.get<{
+        [key in typeof fieldId]: {
+          [key in typeof locale]?: StoredLayoutEntity[];
+        };
+      }>({
+        entryId,
+      }),
+      cma.contentType
+        .get({
+          spaceId,
+          environmentId,
+          contentTypeId,
+        })
+        .then((contentType) => {
+          return contentType;
+        }),
+      cma.editorInterface.get({
+        spaceId: spaceId,
+        environmentId: environmentId,
+        contentTypeId: contentTypeId,
+      }),
+    ]).then(([entry, contentType, editorInterface]) => {
+      if (!mounted) return;
+      const layout = entry.fields[fieldId][locale];
+      const fieldInfo = contentType.fields.find(
+        (field) => field.id === fieldId,
+      );
+      if (fieldInfo == null) return null;
+      const fieldDef = {
+        id: fieldInfo.id,
+        locale,
+        type: fieldInfo.type,
+        validations: fieldInfo.validations ?? [],
+        required: fieldInfo.required,
+      };
+      if (fieldDef == null) {
+        setError(
+          new Error(
+            `Field '${fieldId}' not found on content type '${contentTypeId}'`,
+          ),
+        );
+        return;
+      }
+      const field = customSdk.getField({
+        ...fieldDef,
+        value: layout ?? [],
+      });
+      const entryFieldInfo = contentType.fields.map((field): EntryFieldInfo => {
+        const fieldVal = entry.fields[field.id];
+        const locales =
+          fieldVal != null ? Object.keys(fieldVal) : [sdk.locales.default];
+        const values = fromEntries(
+          locales.map((locale) => [locale, fieldVal?.[locale]] as const),
+        );
+        return {
+          id: field.id,
+          type: field.type,
+          validations: field.validations ?? [],
+          required: field.required,
+          locales,
+          values,
+          ...(field.items != null ? { items: field.items } : null),
+        };
+      });
+      setRecoveredFieldSDK({
+        access: sdk.access,
+        cmaAdapter: sdk.cmaAdapter,
+        contentType: contentType as unknown as ContentTypeAPI,
+        entry: customSdk.createEntry(
+          {
+            metadata: entry.metadata,
+            sys: entry.sys,
+          },
+          entryFieldInfo,
+          (info: EntryFieldInfo) =>
+            customSdk.getEntryField(info, sdk.locales.default),
+        ),
+        dialogs: sdk.dialogs,
+        field,
+        ids: {
+          ...sdkIds,
+          field: fieldId,
+          entry: entryId,
+          contentType: contentTypeId,
+        },
+        space: sdk.space,
+        user: sdk.user,
+        locales: sdk.locales,
+        navigator: sdk.navigator,
+        notifier: sdk.notifier,
+        parameters: sdk.parameters,
+        location: sdk.location,
+        editor: customSdk.createEditor(editorInterface),
+        window: sdk.window,
+      });
+    });
+    return () => {
+      mounted = false;
+      setRecoveredFieldSDK(undefined);
+      setError(null);
+    };
+  }, [
+    cma.contentType,
+    cma.editorInterface,
+    cma.entry,
+    contentTypeId,
+    customSdk,
+    entryId,
+    environmentId,
+    fieldId,
+    locale,
+    sdk.access,
+    sdk.cmaAdapter,
+    sdk.dialogs,
+    sdk.locales,
+    sdk.location,
+    sdk.navigator,
+    sdk.notifier,
+    sdk.parameters,
+    sdk.space,
+    sdk.user,
+    sdk.window,
+    sdkIds,
+    spaceId,
+  ]);
+
+  if (error != null) {
+    return <Paragraph>{error.message}</Paragraph>;
+  }
+
+  if (recoveredFieldSDK == null) {
+    return <Paragraph>Loading...</Paragraph>;
+  }
+
+  return <PageLayoutEditorDialogue {...props} sdk={recoveredFieldSDK} />;
+}
+
+const dialogues = {
+  layoutEditor: PageLayoutEditorDialogueLoader,
+};
+
+type PageDialogueInvokationMap = {
+  [key in keyof typeof dialogues]: Omit<
+    Parameters<typeof dialogues[key]>[0],
+    'sdk'
+  > & { type: key };
+};
+
+function isInvocation(
+  invocation: SerializedJSONValue | undefined,
+): invocation is PageDialogueInvokationMap[keyof PageDialogueInvokationMap] {
+  return (
+    typeof invocation === 'object' &&
+    invocation !== null &&
+    'type' in invocation &&
+    typeof invocation.type === 'string' &&
+    invocation.type in dialogues
+  );
+}
 
 const Dialog = () => {
   const sdk = useSDK<DialogExtensionSDK>();
-  /*
-     To use the cma, inject it as follows.
-     If it is not needed, you can remove the next line.
-  */
-  // const cma = useCMA();
 
+  const invocation = sdk.parameters.invocation;
+
+  useEffect(() => {
+    sdk.window.startAutoResizer();
+    return () => {
+      sdk.window.stopAutoResizer();
+    };
+  }, [sdk.window]);
+
+  if (isInvocation(invocation)) {
+    const { type, ...props } = invocation;
+    const Dialogue = dialogues[type];
+    return <Dialogue sdk={sdk} {...props} />;
+  }
+
+  // const fieldEditor = useFieldEditor(field);
   return <Paragraph>Hello Dialog Component (AppId: {sdk.ids.app})</Paragraph>;
 };
 

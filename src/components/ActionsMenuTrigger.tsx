@@ -3,12 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Menu, MenuProps } from "@contentful/f36-components";
 import tokens from "@contentful/f36-tokens";
 import { css } from "emotion";
-import get from "lodash/get";
-import {
-  layouts,
-  LayoutTypeName,
-  LAYOUT_TYPES,
-} from "./LayoutTypeDefinitions";
+import isPromiseLike from "../utils/isPromiseLike";
 
 const menuPlacementMap: {
   [key: string]: MenuProps["placement"];
@@ -58,18 +53,19 @@ export type CreateCustomEntryMenuItems = ({
   closeMenu: Function;
 }) => React.ReactElement;
 
-interface LayoutActionsMenuTriggerProps {
+interface ActionsMenuTriggerProps<Item> {
   layoutTypesLabel?: string;
-  onSelect: (LayoutType: typeof LAYOUT_TYPES[number]) => Promise<unknown>;
+  onSelect: (LayoutType: Item) => unknown | Promise<unknown>;
   testId?: string;
   dropdownSettings?: {
     isAutoalignmentEnabled?: boolean;
     position: "bottom-left" | "bottom-right";
   };
   children: LayoutActionsMenuTriggerChild;
+  items: Item[];
 }
 
-export default function LayoutActionsMenuTrigger({
+export default function LayoutActionsMenuTrigger<Item extends { key: string; label: string; }>({
   layoutTypesLabel,
   onSelect,
   testId = "layout-actions-button-menu-trigger",
@@ -77,7 +73,8 @@ export default function LayoutActionsMenuTrigger({
     position: "bottom-left",
   },
   children,
-}: LayoutActionsMenuTriggerProps) {
+  items,
+}: ActionsMenuTriggerProps<Item>) {
   const [isOpen, setOpen] = useState(false);
   const [isSelecting, setSelecting] = useState(false);
   const wrapper = useRef<any | null>(null);
@@ -93,7 +90,7 @@ export default function LayoutActionsMenuTrigger({
   */
   const [dropdownWidth, setDropdownWidth] = useState();
 
-  const hasDropdown = LAYOUT_TYPES.length > 1;
+  const hasDropdown = items.length > 1;
 
   const closeMenu = () => setOpen(false);
 
@@ -113,12 +110,12 @@ export default function LayoutActionsMenuTrigger({
     }
   }, [isOpen, dropdownWidth]);
 
-  const handleSelect = (item: LayoutTypeName) => {
+  const handleSelect = (item: Item) => {
     closeMenu();
     const res = onSelect(item);
 
     // TODO: Convert to controllable component.
-    if (res && typeof res.then === "function") {
+    if (isPromiseLike(res)) {
       setSelecting(true);
       res.then(
         () => setSelecting(false),
@@ -130,12 +127,14 @@ export default function LayoutActionsMenuTrigger({
   const handleMenuOpen = () => {
     if (hasDropdown) {
       setOpen(true);
-    } else if (LAYOUT_TYPES.length > 0) {
-      handleSelect(LAYOUT_TYPES[0]);
+    } else if (items.length > 0) {
+      handleSelect(items[0]);
     }
   };
 
   const maxDropdownHeight = 250;
+
+  if (items.length === 0) return null;
 
   return (
     <span className={styles.wrapper} ref={wrapper} data-test-id={testId}>
@@ -160,20 +159,16 @@ export default function LayoutActionsMenuTrigger({
             testId="add-entry-menu"
           >
             <Menu.SectionTitle>{layoutTypesLabel}</Menu.SectionTitle>
-            {LAYOUT_TYPES.length ? (
-              LAYOUT_TYPES.map((layoutType, i) => (
+            {items.length ? (
+              items.map((item, i) => (
                 <Menu.Item
                   testId="contentType"
-                  key={layoutType}
+                  key={item.key}
                   onClick={() =>
-                    handleSelect(layoutType)
+                    handleSelect(item)
                   }
                 >
-                  {get(
-                    layouts[layoutType],
-                    "name",
-                    "Untitled"
-                  )}
+                  {item.label}
                 </Menu.Item>
               ))
             ) : (

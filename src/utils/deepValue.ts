@@ -10,32 +10,68 @@ function cloneValue<T>(obj: T): T {
   return obj;
 }
 
-export function modifyDeepValue(obj: any, path: (string | number)[], value: any) {
+function keyToString(key: string | number | { index: number, id?: string }): string {
+  if (typeof key === 'object') {
+    return `[${key.index}${key.id ? `(${key.id})` : ''}]`;
+  }
+  if (typeof key === 'string') {
+    return `.${key}`;
+  }
+  return `[${key}]`;
+}
+
+export function pathToString(path: (string | number | { index: number, id?: string })[], base?: string): string {
+  if (base) {
+    return `${base}${path.map(keyToString).join('')}`;
+  }
+  return path.map(keyToString).join('').replace(/^\./, '');
+}
+
+class IncompatibleChildPathError extends Error {
+  obj: unknown;
+
+  constructor(path: (string | number | { index: number, id?: string })[], faultIndex: number, obj: unknown, val: unknown, expectedType: string) {
+    super(`Incompatible child path at index ${faultIndex} (${pathToString(path.slice(0, faultIndex))}) of path ${pathToString(path)}: expected ${expectedType}, got ${IncompatibleChildPathError.objectType(val)}`);
+    this.obj = obj;
+  }
+
+  private static objectType(obj: unknown) {
+    if (obj === null) return 'null';
+    if (typeof obj === 'object') {
+      if (Array.isArray(obj)) return 'array';
+      return Object.prototype.toString.call(obj);
+    }
+    return typeof obj;
+  }
+}
+
+export function modifyDeepValue(obj: any, path: (string | number | { index: number, id?: string })[], value: any) {
   const newBaseValue = cloneValue(obj);
   const res = path.reduce((cur, key, index, arr) => {
-    if (cur === INCOMPATIBLE_CHILD_PATH) {
-      return INCOMPATIBLE_CHILD_PATH;
+    if (cur instanceof IncompatibleChildPathError) {
+      return cur;
     }
     if (typeof cur !== 'object') {
-      return INCOMPATIBLE_CHILD_PATH;
+      return new IncompatibleChildPathError(arr, index, obj, cur, 'object | array');
     }
-    if (typeof key === 'number') {
+    const accessKey = typeof key === 'object' ? key.index : key;
+    if (typeof accessKey === 'number') {
       if (!Array.isArray(cur)) {
-        return INCOMPATIBLE_CHILD_PATH;
+        return new IncompatibleChildPathError(arr, index, obj, cur, 'array');
       }
     }
-    if (typeof key !== 'number' && Array.isArray(cur)) {
-      return INCOMPATIBLE_CHILD_PATH;
+    if (typeof accessKey !== 'number' && Array.isArray(cur)) {
+      return new IncompatibleChildPathError(arr, index, obj, cur, 'object');
     }
     if (index === arr.length - 1) {
       if (value === DELETE) {
-        delete cur[key];
+        delete cur[accessKey];
         return undefined;
       }
-      cur[key] = value;
+      cur[accessKey] = value;
       return value;
     }
-    let next: unknown = cloneValue(cur[key]);
+    let next: unknown = cloneValue(cur[accessKey]);
     if (next == null) {
       if (typeof arr[index + 1] === 'number') {
         next = [];
@@ -43,26 +79,20 @@ export function modifyDeepValue(obj: any, path: (string | number)[], value: any)
         next = {};
       }
     }
-    cur[key] = next;
+    cur[accessKey] = next;
     return next;
   }, newBaseValue);
-  if (res === INCOMPATIBLE_CHILD_PATH) {
-    throw new Error(
-      `Incompatible child path: baseValue${path
-        .map((key) => (typeof key === 'number' ? `[${key}]` : `.${key}`))
-        .join(
-          '',
-        )}. Encountered a non-object value while traversing. Or an array when expecting an object. Or vice versa`,
-    );
+  if (res instanceof IncompatibleChildPathError) {
+    throw res;
   }
   return newBaseValue;
 }
 
-export function getDeepValue(value: any, path: (string | number)[]): any {
+export function getDeepValue(value: any, path: (string | number | { index: number, id?: string })[]): any {
   return path.reduce((currentValue, key) => {
     if (currentValue === undefined) {
       return undefined;
     }
-    return currentValue[key];
+    return currentValue[typeof key === 'object' ? key.index : key];
   }, value);
 }

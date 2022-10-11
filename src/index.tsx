@@ -2,10 +2,12 @@ import React from 'react';
 import { render } from 'react-dom';
 
 import { GlobalStyles } from '@contentful/f36-components';
-import { SDKProvider } from '@contentful/react-apps-toolkit';
+import { SDKContext } from '@contentful/react-apps-toolkit';
+import { init, KnownSDK } from '@contentful/app-sdk';
 
 import LocalhostWarning from './components/LocalhostWarning';
 import App from './App';
+import { CustomSDKProvider } from './hooks/useCustomSdk';
 
 const root = document.getElementById('root');
 
@@ -14,10 +16,10 @@ if (process.env.NODE_ENV === 'development' && window.self === window.top) {
   render(<LocalhostWarning />, root);
 } else {
   render(
-    <SDKProvider>
+    <CustomSDKProvider>
       <GlobalStyles />
       <App />
-    </SDKProvider>,
-    root
+    </CustomSDKProvider>,
+    root,
   );
 }

@@ -1,31 +1,31 @@
-import * as styles from './styles';
+import * as styles from '../ComponentEditor/styles';
 import { Button } from '@contentful/f36-components';
 import { PlusIcon, ChevronDownIcon } from '@contentful/f36-icons';
-import { layouts, LayoutTypeName, LAYOUT_TYPES } from '../../LayoutTypeDefinitions';
 import { useCallback, useMemo } from 'react';
 import ActionsMenuTrigger from '../ActionsMenuTrigger';
+import components, { ComponentTypeName, COMPONENT_TYPES } from '../../ComponentTypeDefinitions';
 
-const hasDropdown = LAYOUT_TYPES.length > 1;
+const hasDropdown = COMPONENT_TYPES.length > 1;
 
-export type LayoutActionsProps = {
-  addNewLayout: (layoutType: typeof LAYOUT_TYPES[number]) => Promise<unknown>;
+export type ComponentActionsProps = {
+  addNewComponent: (layoutType: typeof COMPONENT_TYPES[number]) => Promise<unknown>;
   isFull: boolean;
   isEmpty: boolean;
 };
 
-export default function LayoutActions({
+export default function ComponentActions({
   isFull,
   isEmpty,
-  addNewLayout,
-}: LayoutActionsProps) {
+  addNewComponent,
+}: ComponentActionsProps) {
 
-  const onSelect = useCallback(({ key }: { key: LayoutTypeName }) => {
-    return addNewLayout(key);    
-  }, [addNewLayout]);
+  const onSelect = useCallback(({ key }: { key: ComponentTypeName }) => {
+    return addNewComponent(key);    
+  }, [addNewComponent]);
 
   const items = useMemo(() => {
-    return LAYOUT_TYPES.map((type) => ({
-      label: layouts[type].name,
+    return COMPONENT_TYPES.map((type) => ({
+      label: components[type].name ?? type,
       key: type,
     }));
   }, []);
@@ -54,7 +54,7 @@ export default function LayoutActions({
             size="small"
             isLoading={isSelecting}
           >
-            Add Layout
+            Add Component
           </Button>
         )}
       </ActionsMenuTrigger>

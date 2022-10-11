@@ -27,7 +27,9 @@ type FieldConnectorParams<ValueType> = {
 
 export interface ExtendedFieldConnectorChildProps<ValueType>
   extends FieldConnectorChildProps<ValueType> {
-  setImmediateValue: (newValue: ValueType | Nullable) => Promise<SerializedJSONValue | undefined>;
+  setImmediateValue: (
+    newValue: ValueType | Nullable,
+  ) => Promise<SerializedJSONValue | undefined>;
   configurableFieldAPI: ConfigurableFieldAPI | null;
 }
 
@@ -55,7 +57,10 @@ export default function useFieldEditor<ValueType>({
   const configurableFieldAPI = useConfigurableFieldAPI(field);
 
   const [state, setState] = useState<
-    Omit<ExtendedFieldConnectorChildProps<ValueType>, 'setValue' | 'setImmediateValue'>
+    Omit<
+      ExtendedFieldConnectorChildProps<ValueType>,
+      'setValue' | 'setImmediateValue'
+    >
   >(() => {
     const initialValue: ValueType | Nullable = field?.getValue();
 
@@ -81,9 +86,9 @@ export default function useFieldEditor<ValueType>({
     [],
   );
 
-  const setImmediateValue = useCallback((value: ValueType | Nullable) => {
-    return new Promise<SerializedJSONValue | undefined>(
-      (resolve, reject) => {
+  const setImmediateValue = useCallback(
+    (value: ValueType | Nullable) => {
+      return new Promise<SerializedJSONValue | undefined>((resolve, reject) => {
         if (isEmptyValueRef.current(value ?? null)) {
           fieldRef.current
             ?.removeValue()
@@ -91,9 +96,10 @@ export default function useFieldEditor<ValueType>({
         } else {
           setFieldValue(value).then(resolve, reject);
         }
-      },
-    );
-  }, [setFieldValue])
+      });
+    },
+    [setFieldValue],
+  );
 
   const triggerSetValueCallbacks = useMemo(() => {
     return throttle(
@@ -140,7 +146,7 @@ export default function useFieldEditor<ValueType>({
       (errors: ValidationError[]) => {
         setState((currentState) => ({
           ...currentState,
-          errors: errors || emptyErrors,
+          errors: errors || emptyArray,
         }));
       },
     );
@@ -192,16 +198,12 @@ export default function useFieldEditor<ValueType>({
   );
 }
 
-const emptyErrors: never[] = [];
-
-const SUBFIELD_CONFIG = Symbol('subfieldConfig');
+const emptyArray: never[] = [];
 
 interface SubFieldConnectorChildProps<ValueType>
   extends ExtendedFieldConnectorChildProps<ValueType> {
-  [SUBFIELD_CONFIG]: {
-    path: (string | number)[] | null;
-    parent: ExtendedFieldConnectorChildProps<any>;
-  };
+  readonly parent: ExtendedFieldConnectorChildProps<any>;
+  readonly path: (string | number | { index: number; id?: string })[] | null;
 }
 
 export function isExtendedFieldEditor(
@@ -217,26 +219,74 @@ export function isExtendedFieldEditor(
 function isSubfieldEditor(
   fieldEditor: FieldConnectorChildProps<any>,
 ): fieldEditor is SubFieldConnectorChildProps<any> {
-  return isExtendedFieldEditor(fieldEditor) && SUBFIELD_CONFIG in fieldEditor;
+  return (
+    isExtendedFieldEditor(fieldEditor) &&
+    'parent' in fieldEditor &&
+    typeof (fieldEditor as { parent?: unknown }).parent === 'object' &&
+    (fieldEditor as { parent?: unknown }).parent != null &&
+    typeof (fieldEditor as { path?: unknown }).path === 'object' &&
+    (fieldEditor as { path?: unknown }).path != null &&
+    Array.isArray((fieldEditor as { path?: unknown }).path)
+  );
 }
 
-export function useSubFieldEditor<T extends {}>(
-  fieldEditor: ExtendedFieldConnectorChildProps<any>,
-  path: string | number | (string | number)[] | null,
-): SubFieldConnectorChildProps<T> {
-  const subfieldConfig = isSubfieldEditor(fieldEditor)
-    ? fieldEditor[SUBFIELD_CONFIG]
-    : null;
-  const baseFieldEditor = subfieldConfig ? subfieldConfig.parent : fieldEditor;
-  const resolvedPath = useMemo(() => {
-    if (path === null) {
+function usePathToArr(
+  path:
+    | string
+    | number
+    | { index: number; id?: string }
+    | (string | number | { index: number; id?: string })[]
+    | null,
+) {
+  let pathKey: unknown[];
+
+  if (Array.isArray(path)) {
+    pathKey = path;
+  } else if (path !== null && typeof path === 'object') {
+    pathKey = path.id == null ? [path.index] : [path.index, path.id];
+  } else {
+    pathKey = [path];
+  }
+
+  return useMemo(() => {
+    if (path == null) {
       return null;
     }
-    return [
-      ...(subfieldConfig?.path ?? []),
-      ...(Array.isArray(path) ? path : [path]),
-    ];
-  }, [subfieldConfig, path]);
+    if (Array.isArray(path)) {
+      return path;
+    }
+    if (typeof path === 'object') {
+      return path.id == null ? [path.index] : [path];
+    }
+    return [path];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, pathKey);
+}
+
+export function useSubFieldEditor<T>(
+  fieldEditor: ExtendedFieldConnectorChildProps<any>,
+  path:
+    | string
+    | { index: number; id?: string }
+    | (string | { index: number; id?: string })[]
+    | null,
+): SubFieldConnectorChildProps<T> {
+  const pathArr = usePathToArr(path);
+  const baseFieldEditor = isSubfieldEditor(fieldEditor)
+    ? fieldEditor.parent
+    : fieldEditor;
+  const subFieldPath = isSubfieldEditor(fieldEditor)
+    ? fieldEditor.path
+    : emptyArray;
+  const resolvedPath = useMemo(() => {
+    if (pathArr === null) {
+      return null;
+    }
+    if (subFieldPath === null) {
+      return null;
+    }
+    return subFieldPath.length === 0 ? pathArr : [...subFieldPath, ...pathArr];
+  }, [pathArr, subFieldPath]);
   const deepValue = useMemo(
     () => resolvedPath && getDeepValue(baseFieldEditor.value, resolvedPath),
     [baseFieldEditor, resolvedPath],
@@ -246,10 +296,7 @@ export function useSubFieldEditor<T extends {}>(
   const deepLastRemoteValue = useMemo(
     () =>
       resolvedPath &&
-      resolvedPath.reduce(
-        (cur, key) => cur?.[key],
-        baseFieldEditor.lastRemoteValue,
-      ),
+      getDeepValue(baseFieldEditor.lastRemoteValue, resolvedPath),
     [baseFieldEditor, resolvedPath],
   );
   const deepLastRemoteValueRef = useRef(deepLastRemoteValue);
@@ -278,23 +325,32 @@ export function useSubFieldEditor<T extends {}>(
     return setDeepValue;
   }, [resolvedPath, setImmediateBaseValue]);
 
-  const baseConfigurableFieldAPI = fieldEditor.configurableFieldAPI;
+  const baseConfigurableFieldAPI = baseFieldEditor.configurableFieldAPI;
 
-  const configurableFieldAPI = useSubFieldAPI(baseConfigurableFieldAPI, resolvedPath);
+  const configurableFieldAPI = useSubFieldAPI(
+    baseConfigurableFieldAPI,
+    resolvedPath,
+  );
 
   return useMemo<SubFieldConnectorChildProps<T>>(() => {
     return {
       ...baseFieldEditor,
-      [SUBFIELD_CONFIG]: {
-        path: resolvedPath,
-        parent: baseFieldEditor,
-      },
+      path: resolvedPath,
+      parent: baseFieldEditor,
       configurableFieldAPI,
-      errors: emptyErrors,
+      errors: emptyArray,
       lastRemoteValue: deepLastRemoteValue,
       value: deepValue,
       setValue,
-      setImmediateValue
+      setImmediateValue,
     };
-  }, [baseFieldEditor, resolvedPath, configurableFieldAPI, deepLastRemoteValue, deepValue, setValue, setImmediateValue]);
+  }, [
+    baseFieldEditor,
+    resolvedPath,
+    configurableFieldAPI,
+    deepLastRemoteValue,
+    deepValue,
+    setValue,
+    setImmediateValue,
+  ]);
 }

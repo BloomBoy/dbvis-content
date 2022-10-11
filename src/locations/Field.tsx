@@ -6,10 +6,8 @@ import {
   FieldExtensionSDK,
 } from "@contentful/app-sdk";
 import { /* useCMA, */ useSDK } from "@contentful/react-apps-toolkit";
-import { ConnectedRichTextEditor } from '@contentful/field-editor-rich-text'; 
 import { EntityProvider } from '@contentful/field-editor-reference';
-import { FieldConnectorChildProps } from "@contentful/field-editor-shared";
-import { LayoutListEditor } from "../components/LayoutListEditor";
+import LayoutListEditor from "../components/LayoutListEditor";
 
 function IncorrectContentType(props: {
   sdk: EditorExtensionSDK;
@@ -92,21 +90,9 @@ function isValidContentType(contentType: ContentTypeAPI) {
   return [missingFields.length === 0, missingFields] as const;
 }
 
-function RichTextField({ fieldEditor }: {
-  fieldEditor: FieldConnectorChildProps<object> }
-) {
-  const sdk = useSDK<FieldExtensionSDK>();
-  return <ConnectedRichTextEditor
-    sdk={sdk}
-    value={fieldEditor.value ?? undefined}
-    onAction={(...args) => console.log('onAction', ...args)}
-    isDisabled={fieldEditor.disabled}
-    onChange={fieldEditor.setValue}
-  />
-}
-
 export default function Field() {
   const sdk = useSDK<FieldExtensionSDK>();
+  console.log("sdk", sdk);
   useEffect(() => {
     sdk.window.startAutoResizer();
     return () => {

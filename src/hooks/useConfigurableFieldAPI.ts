@@ -17,7 +17,7 @@ export type ConfigurableFieldAPI = Omit<
   typeof FIELD_API_CONFIG_KEYS[number]
 > & {
   readonly [SUBFIELDAPI_CONFIG]: {
-    readonly path: (string | number)[];
+    readonly path: (string | number | { index: number, id?: string })[];
     readonly parent: FieldAPI;
   };
 };
@@ -109,12 +109,12 @@ function useFieldAPIHooks(field: FieldAPI | null, path: any[] | null) {
         >[number];
       }),
     );
-  }, [path]);
+  }, []);
 }
 
 export function useSubFieldAPI(
   fieldAPI: ConfigurableFieldAPI | null,
-  path: (string | number | (string | number)[]) | null,
+  path: (string | number | { index: number, id?: string } | (string | number | { index: number, id?: string })[]) | null,
 ): ConfigurableFieldAPI | null {
   const baseField = fieldAPI?.[SUBFIELDAPI_CONFIG]?.parent ?? null;
   const basePath = fieldAPI?.[SUBFIELDAPI_CONFIG]?.path ?? null;

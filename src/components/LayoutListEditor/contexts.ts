@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import { SortEndHandler, SortStartHandler } from "react-sortable-hoc";
-import { Layout, LayoutTypeName } from "./LayoutTypeDefinitions";
+import { Layout, LayoutTypeName } from "../../LayoutTypeDefinitions";
 
 export const LayoutListContext = createContext<{
   items: Layout[];

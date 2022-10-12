@@ -301,7 +301,6 @@ export class CustomSDK {
 
   constructor(private channel: Channel, params: ConnectMessage ) {
     [this.MemoizedSignal, this.Field, this.FieldLocale] = getFieldClasses(getSignalClassFromChannel(channel));
-    console.log(this.Field, this.FieldLocale);
   }
 
   getEntryField(info: EntryFieldInfo, defaultLocale: string): EntryFieldAPI {

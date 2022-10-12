@@ -92,7 +92,6 @@ function isValidContentType(contentType: ContentTypeAPI) {
 
 export default function Field() {
   const sdk = useSDK<FieldExtensionSDK>();
-  console.log("sdk", sdk);
   useEffect(() => {
     sdk.window.startAutoResizer();
     return () => {

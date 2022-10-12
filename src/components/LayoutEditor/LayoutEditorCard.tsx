@@ -170,7 +170,9 @@ export default function LayoutEditorCard<T extends LayoutTypeName>({
               onRemove();
               return;
             }
-            setValue(value);
+            setImmediateValue(value).then(() => {
+              sdk.entry.save();
+            });
           });
         },
         quickAccess: true,
@@ -185,7 +187,7 @@ export default function LayoutEditorCard<T extends LayoutTypeName>({
       quickAccess: arr.length === 0,
     });
     return [arr, arr.some((a) => !a.quickAccess)];
-  }, [hasModal, handleOnRemove, sdk.dialogs, sdk.field.locale, item.id, setValue, onRemove]);
+  }, [hasModal, handleOnRemove, sdk.dialogs, sdk.field.locale, sdk.entry, item.id, setImmediateValue, onRemove]);
 
   return (
     <EntryCard

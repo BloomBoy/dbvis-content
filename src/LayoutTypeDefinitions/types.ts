@@ -1,4 +1,3 @@
-import { ExtendedFieldConnectorChildProps } from '../hooks/useFieldEditor';
 import { EditorOptions } from '@contentful/default-field-editors';
 import { ContentTypeFieldValidation, FieldType } from 'contentful-management';
 import { StoredComponentEntity } from '../ComponentTypeDefinitions';

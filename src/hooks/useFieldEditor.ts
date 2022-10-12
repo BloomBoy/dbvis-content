@@ -77,7 +77,6 @@ export default function useFieldEditor<ValueType>({
 
   const setFieldValue = useCallback<NonNullable<typeof field>['setValue']>(
     (value) => {
-      console.log('setting value:', value);
       if (fieldRef.current) {
         return fieldRef.current.setValue(value);
       }

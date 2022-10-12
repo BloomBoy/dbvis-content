@@ -221,8 +221,6 @@ function PageLayoutEditorDialogue({
     return Promise.resolve(newVal as unknown as SerializedJSONValue);
   }, []);
 
-  console.log({ fieldValue, layoutIndex, layout, layoutId });
-
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
 

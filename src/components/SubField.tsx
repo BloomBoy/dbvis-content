@@ -125,6 +125,7 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
 
   const field = useMemo<ContentFields>(() => ({
     id: `${id}.${subFieldKey}`,
+    ...(subField.type === 'Link' ? { linkType: subField.linkType } : null),
     localized: sdk.contentType.fields.find(f => f.id === sdk.field.id)?.localized ?? false,
     disabled: disabled,
     name: subField.title ?? subFieldKey,
@@ -133,7 +134,7 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
     items: subField.items,
     validations: subField.validations,
     defaultValue: subField.default as KeyValueMap,
-  }), [id, subFieldKey, sdk.contentType.fields, sdk.field.id, disabled, subField.title, subField.required, subField.type, subField.items, subField.validations, subField.default]);
+  }), [id, subFieldKey, subField, sdk.contentType.fields, sdk.field.id, disabled]);
 
   const editorInterface = useMemo(() => editorInterfaceDefaults.default.getDefaultControlOfField(field), [field]);
 
@@ -184,7 +185,7 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
           return fieldApi;
         }
         return Reflect.get(target, prop, receiver);
-      }
+      },
     });
   }, [sdk, fieldApi])
 
@@ -200,8 +201,10 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
     locales: sdk.locales,
     isInitiallyDisabled: field.disabled,
     parameters: {
-      showCreateEntityAction: false,
-      showLinkEntityAction: true,
+      instance: {
+        showCreateEntityAction: false,
+        showLinkEntityAction: true,
+      },
     },
     ...widgetStaticProps,
     // @ts-expect-error
@@ -209,10 +212,6 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
   };
 
   const baseSdk = widgetId === 'slugEditor' ? sdk : undefined;
-
-  console.log(widgetId, { widgetComponentProps })
-
-  console.log(field);
 
   return (
     <FormControl

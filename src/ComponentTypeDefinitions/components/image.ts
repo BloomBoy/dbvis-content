@@ -1,12 +1,14 @@
+import { AlignmentData, alignmentFields } from '../../shared';
 import makeComponent from '../../utils/makeComponent';
 
-type ButtonData = {
+interface ButtonData extends AlignmentData {
   asset: string;
 };
 
 const Button = makeComponent<ButtonData>({
   name: 'Image',
   subFields: {
+    ...alignmentFields,
     asset: {
       type: 'Link',
       linkType: 'Asset',

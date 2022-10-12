@@ -1,7 +1,6 @@
 import { SerializedJSONValue } from '@contentful/app-sdk';
 import { Stack } from '@contentful/f36-components';
 import { useCallback, useMemo, useRef } from 'react';
-import { useSubFieldEditor } from '../../hooks/useFieldEditor';
 import useSubFields from '../../hooks/useSubFields';
 import {
   LayoutTypeName,

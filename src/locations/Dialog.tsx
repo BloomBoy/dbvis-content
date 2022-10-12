@@ -65,9 +65,9 @@ type FullPageProps<LayotType extends LayoutTypeName> = {
 
 const styles = {
   editorWrapper: css({
-    paddingTop: '40px',
+    paddingTop: '70px',
   }),
-  editorFooter: css({
+  editorHeader: css({
     position: "fixed",
     top: 0,
     right: 0,
@@ -176,8 +176,8 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
   return (
     <Box className={styles.editorWrapper}>
       <RenderModal {...fullLayoutProps} />
-      <Stack className={styles.editorFooter} alignItems="center" justifyContent="space-between" padding="spacingS">
-        <Heading as="h2" margin="none">
+      <Stack className={styles.editorHeader} alignItems="center" justifyContent="space-between" padding="spacingS">
+        <Heading as="h2" marginBottom="none">
           {title}
         </Heading>
         <Stack>

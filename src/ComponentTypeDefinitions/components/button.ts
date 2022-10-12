@@ -1,6 +1,7 @@
+import { AlignmentData, alignmentFields } from '../../shared';
 import makeComponent from '../../utils/makeComponent';
 
-type ButtonData = {
+interface ButtonData extends AlignmentData {
   buttonText: string;
   target: string;
 };
@@ -13,6 +14,7 @@ const Button = makeComponent<ButtonData>({
       title: 'Button Text',
       required: true,
     },
+    ...alignmentFields,
     target: [
       {
         type: 'Symbol',

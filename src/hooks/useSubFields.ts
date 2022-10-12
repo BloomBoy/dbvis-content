@@ -1,16 +1,12 @@
-import { useMemo } from "react";
-import { FieldMap, WidgetDefinition, FieldTypeDefinition } from "../LayoutTypeDefinitions";
-import { objectEntries } from "../utils/objects";
+import { useMemo } from 'react';
+import { FieldMap, WidgetDefinition, FieldTypeDefinition } from '../shared';
+import { objectEntries } from '../utils/objects';
 
-export default function useSubFields<Data>(
-  subFields: FieldMap<Data>,
-) {
+export default function useSubFields<Data>(subFields: FieldMap<Data>) {
   return useMemo(() => {
     return objectEntries(subFields).map(([key, subField]) => {
       let widget: WidgetDefinition | undefined;
-      let field: FieldTypeDefinition<
-        Data[typeof key]
-      >;
+      let field: FieldTypeDefinition<Data[typeof key]>;
       if (Array.isArray(subField)) {
         if (typeof subField[0] === 'string') {
           field = {

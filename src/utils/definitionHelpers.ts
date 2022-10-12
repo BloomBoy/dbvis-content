@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { EditorOptions } from '@contentful/default-field-editors';
-import { ComponentContainer, FieldDefinition, FieldMap, LayoutTypeDef, WidgetDefinition } from "../LayoutTypeDefinitions";
+import { ComponentContainer, LayoutTypeDef } from "../LayoutTypeDefinitions";
 import { objectEntries } from "./objects";
+import { FieldDefinition, WidgetDefinition, FieldMap } from "../shared";
 
 export const DEFAULT_SLOT_NAME: [singular: string, plural: string] = ['Slot', 'Slots'];
 

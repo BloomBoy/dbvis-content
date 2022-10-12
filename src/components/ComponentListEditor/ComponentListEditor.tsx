@@ -4,10 +4,8 @@ import components, {
   StoredComponentDataByTypeName,
   StoredComponentEntity,
 } from '../../ComponentTypeDefinitions';
-import { useSubFieldEditor } from '../../hooks/useFieldEditor';
 import {
   ComponentContainer,
-  FieldMap,
   FullLayoutProps,
   LayoutContainerDataByTypeName,
   LayoutDataByTypeName,
@@ -16,10 +14,11 @@ import {
 import ComponentEditorCard from '../ComponentEditor/ComponentEditorCard';
 import SortableList, { SortableContainerChildProps } from '../SortableList';
 import ComponentAction from './ComponentActions';
-import * as definitionHelpers from '../../utils/layoutDefinitionHelpers';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import * as definitionHelpers from '../../utils/definitionHelpers';
+import { useCallback, useMemo, useRef } from 'react';
 import { SerializedJSONValue } from '@contentful/app-sdk';
 import { pathToString } from '../../utils/deepValue';
+import { FieldMap } from '../../shared';
 
 type Props<LayoutType extends LayoutTypeName> = FullLayoutProps<
   LayoutDataByTypeName<LayoutType>,
@@ -40,7 +39,7 @@ function onLinkOrCreate(
   index = items.length,
 ): Promise<unknown> {
   const id = definitionHelpers.getId();
-  const newLayouts: StoredComponentEntity[] = types.map((type) => {
+  const newLayouts = types.map((type) => {
     const component = components[type];
     return {
       type,

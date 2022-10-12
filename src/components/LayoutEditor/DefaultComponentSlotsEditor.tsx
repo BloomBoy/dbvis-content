@@ -16,7 +16,7 @@ import {
   LayoutDataByTypeName,
   LayoutTypeName,
 } from '../../LayoutTypeDefinitions';
-import * as definitionHelpers from '../../utils/layoutDefinitionHelpers';
+import * as definitionHelpers from '../../utils/definitionHelpers';
 import SubField from '../SubField';
 import * as styles from '../ComponentEditor/styles';
 import ComponentListEditor from '../ComponentListEditor';

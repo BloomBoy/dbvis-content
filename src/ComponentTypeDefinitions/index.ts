@@ -1,5 +1,5 @@
 import { FieldExtensionSDK, SerializedJSONValue } from "@contentful/app-sdk";
-import { FieldMap } from "../LayoutTypeDefinitions";
+import { FieldMap } from "../shared";
 import * as rawComponents from './components';
 
 export type StoredComponentData<ComponentData, Type> = {

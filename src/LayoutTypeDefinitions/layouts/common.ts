@@ -1,6 +1,6 @@
-import { FieldMap } from "../types";
+import { AlignmentData, alignmentFields, FieldMap } from "../../shared";
 
-export interface HasHeaderLayoutData {
+export interface HasHeaderLayoutData extends AlignmentData {
   title: string;
   subTitle?: string;
   renderHeader: boolean;
@@ -15,6 +15,7 @@ export const hasHeaderSubFields: FieldMap<HasHeaderLayoutData> = {
     type: 'Symbol',
     required: false,
   },
+  ...alignmentFields,
   renderHeader: [
     {
       type: 'Boolean',

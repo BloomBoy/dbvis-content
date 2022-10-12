@@ -1,15 +1,18 @@
-import { FieldAPI, FieldExtensionSDK, SerializedJSONValue } from '@contentful/app-sdk';
+import {
+  FieldAPI,
+  FieldExtensionSDK,
+  SerializedJSONValue,
+} from '@contentful/app-sdk';
 import { FormControl } from '@contentful/f36-components';
 import tokens from '@contentful/f36-tokens';
-import { ContentFields, editorInterfaceDefaults, KeyValueMap } from 'contentful-management';
+import {
+  ContentFields,
+  editorInterfaceDefaults,
+  KeyValueMap,
+} from 'contentful-management';
 import { css, cx } from 'emotion';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ExtendedFieldConnectorChildProps } from '../hooks/useFieldEditor';
-import {
-  FieldMap,
-  FieldTypeDefinition,
-  WidgetDefinition,
-} from '../LayoutTypeDefinitions';
+import { FieldMap, FieldTypeDefinition, WidgetDefinition } from '../shared';
 import { NumberEditor } from '@contentful/field-editor-number';
 import { SingleLineEditor } from '@contentful/field-editor-single-line';
 import { BooleanEditor } from '@contentful/field-editor-boolean';
@@ -82,10 +85,22 @@ const widgetComponents: Record<string, [React.ComponentType<any>, any?]> = {
   slugEditor: [SlugEditor],
   singleLine: [SingleLineEditor],
   dropdown: [DropdownEditor],
-  entryLinkEditor: [SingleEntryReferenceEditor, { viewType: 'link', hasCardEditActions: true }],
-  entryCardEditor: [SingleEntryReferenceEditor, { viewType: 'card', hasCardEditActions: true }],
-  entryLinksEditor: [MultipleEntryReferenceEditor, { viewType: 'link', hasCardEditActions: true }],
-  entryCardsEditor: [MultipleEntryReferenceEditor, { viewType: 'card', hasCardEditActions: true }],
+  entryLinkEditor: [
+    SingleEntryReferenceEditor,
+    { viewType: 'link', hasCardEditActions: true },
+  ],
+  entryCardEditor: [
+    SingleEntryReferenceEditor,
+    { viewType: 'card', hasCardEditActions: true },
+  ],
+  entryLinksEditor: [
+    MultipleEntryReferenceEditor,
+    { viewType: 'link', hasCardEditActions: true },
+  ],
+  entryCardsEditor: [
+    MultipleEntryReferenceEditor,
+    { viewType: 'card', hasCardEditActions: true },
+  ],
   assetLinkEditor: [SingleMediaEditor, { viewType: 'link' }],
   assetLinksEditor: [MultipleMediaEditor, { viewType: 'link' }],
   assetGalleryEditor: [MultipleMediaEditor, { viewType: 'card' }],
@@ -110,7 +125,9 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
 }: {
   sdk: FieldExtensionSDK;
   value: Data[Key] | undefined | null;
-  setValue: <Value = any>(value: Value) => Promise<SerializedJSONValue | undefined>;
+  setValue: <Value = any>(
+    value: Value,
+  ) => Promise<SerializedJSONValue | undefined>;
   subField: FieldTypeDefinition<Data[Key]>;
   widget: WidgetDefinition | undefined;
   subFieldKey: Key;
@@ -122,61 +139,86 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
   renderHeading?: (name: string) => JSX.Element | null;
   renderHelpText?: (helpText: string) => JSX.Element | null;
 }) {
+  const field = useMemo<ContentFields>(
+    () => ({
+      id: `${id}.${subFieldKey}`,
+      ...(subField.type === 'Link' ? { linkType: subField.linkType } : null),
+      localized:
+        sdk.contentType.fields.find((f) => f.id === sdk.field.id)?.localized ??
+        false,
+      disabled: disabled,
+      name: subField.title ?? subFieldKey,
+      required: subField.required ?? false,
+      type: subField.type,
+      items: subField.items,
+      validations: subField.validations,
+      defaultValue: subField.default as KeyValueMap,
+    }),
+    [id, subFieldKey, subField, sdk.contentType.fields, sdk.field.id, disabled],
+  );
 
-  const field = useMemo<ContentFields>(() => ({
-    id: `${id}.${subFieldKey}`,
-    ...(subField.type === 'Link' ? { linkType: subField.linkType } : null),
-    localized: sdk.contentType.fields.find(f => f.id === sdk.field.id)?.localized ?? false,
-    disabled: disabled,
-    name: subField.title ?? subFieldKey,
-    required: subField.required ?? false,
-    type: subField.type,
-    items: subField.items,
-    validations: subField.validations,
-    defaultValue: subField.default as KeyValueMap,
-  }), [id, subFieldKey, subField, sdk.contentType.fields, sdk.field.id, disabled]);
+  const editorInterface = useMemo(
+    () => editorInterfaceDefaults.default.getDefaultControlOfField(field),
+    [field],
+  );
 
-  const editorInterface = useMemo(() => editorInterfaceDefaults.default.getDefaultControlOfField(field), [field]);
-
-  const widgetId = widget?.id ?? editorInterface.widgetId
+  const widgetId = widget?.id ?? editorInterface.widgetId;
 
   const valueListeners = useRef<((value: any) => void)[]>([]);
 
   useEffect(() => {
-    valueListeners.current.forEach(l => l(value));
+    valueListeners.current.forEach((l) => l(value));
   }, [value]);
 
-  const registerValueChangeListener = useCallback((callback: (value: any) => void) => {
-    valueListeners.current.push(callback);
-    return () => {
-      valueListeners.current = valueListeners.current.filter(l => l !== callback);
-    }
-  }, []);
+  const registerValueChangeListener = useCallback(
+    (callback: (value: any) => void) => {
+      valueListeners.current.push(callback);
+      return () => {
+        valueListeners.current = valueListeners.current.filter(
+          (l) => l !== callback,
+        );
+      };
+    },
+    [],
+  );
 
   const valueRef = useRef(value);
   valueRef.current = value;
 
-  const fieldApi = useMemo<FieldAPI>(() => ({
-    id: field.id,
-    getValue() {
-      return valueRef.current;
-    },
-    locale: sdk.field.locale,
-    onIsDisabledChanged: () => () => {},
-    onSchemaErrorsChanged: () => () => {},
-    onValueChanged: registerValueChangeListener,
-    removeValue: async () => {
-      await setValue(undefined);
-      return undefined;
-    },
-    setInvalid: () => {},
-    setValue,
-    validations: field.validations ?? [],
-    disabled: field.disabled,
-    type: field.type,
-    items: field.items,
-    required: field.required ?? false,
-  }), [field.disabled, field.id, field.items, field.required, field.type, field.validations, registerValueChangeListener, sdk.field.locale, setValue]);
+  const fieldApi = useMemo<FieldAPI>(
+    () => ({
+      id: field.id,
+      getValue() {
+        return valueRef.current;
+      },
+      locale: sdk.field.locale,
+      onIsDisabledChanged: () => () => {},
+      onSchemaErrorsChanged: () => () => {},
+      onValueChanged: registerValueChangeListener,
+      removeValue: async () => {
+        await setValue(undefined);
+        return undefined;
+      },
+      setInvalid: () => {},
+      setValue,
+      validations: field.validations ?? [],
+      disabled: field.disabled,
+      type: field.type,
+      items: field.items,
+      required: field.required ?? false,
+    }),
+    [
+      field.disabled,
+      field.id,
+      field.items,
+      field.required,
+      field.type,
+      field.validations,
+      registerValueChangeListener,
+      sdk.field.locale,
+      setValue,
+    ],
+  );
 
   const patchedSdk = useMemo(() => {
     return new Proxy(sdk, {
@@ -187,13 +229,16 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
         return Reflect.get(target, prop, receiver);
       },
     });
-  }, [sdk, fieldApi])
+  }, [sdk, fieldApi]);
 
   if (!widgetComponents[widgetId]) return null;
 
   const [WidgetComponent, widgetStaticProps] = widgetComponents[widgetId];
 
-  const options = typeof widget?.settings === 'function' ? widget.settings(widgetId, sdk) : widget?.settings ?? {};
+  const options =
+    typeof widget?.settings === 'function'
+      ? widget.settings(widgetId, sdk)
+      : widget?.settings ?? {};
 
   const widgetComponentProps = {
     sdk: patchedSdk,
@@ -221,17 +266,19 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
       className={cx(showFocusBar && styles.withFocusBar, className)}
       isRequired={subField.required}
     >
-    {renderHeading ? (
+      {renderHeading ? (
         renderHeading(subField.title ?? subFieldKey)
       ) : (
-        <FormControl.Label className={styles.label}>{subField.title ?? subFieldKey}</FormControl.Label>
+        <FormControl.Label className={styles.label}>
+          {subField.title ?? subFieldKey}
+        </FormControl.Label>
       )}
-        <WidgetComponent
-          key={`${id}.${subFieldKey}-${sdk.field.locale}`}
-          {...widgetComponentProps}
-          baseSdk={baseSdk}
-        />
-    {renderHelpText ? (
+      <WidgetComponent
+        key={`${id}.${subFieldKey}-${sdk.field.locale}`}
+        {...widgetComponentProps}
+        baseSdk={baseSdk}
+      />
+      {renderHelpText ? (
         renderHelpText(helpText)
       ) : (
         <FormControl.HelpText testId="field-hint" className={styles.helpText}>

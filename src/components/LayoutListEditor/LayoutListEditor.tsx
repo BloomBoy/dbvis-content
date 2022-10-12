@@ -10,7 +10,7 @@ import {
   StoredLayoutDataByTypeName,
   StoredLayoutEntity,
 } from '../../LayoutTypeDefinitions';
-import * as definitionHelpers from '../../utils/layoutDefinitionHelpers';
+import * as definitionHelpers from '../../utils/definitionHelpers';
 import { LayoutEditorCard } from '../LayoutEditor';
 import SortableList, { SortableContainerChildProps } from '../SortableList';
 

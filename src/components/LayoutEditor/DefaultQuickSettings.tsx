@@ -69,7 +69,7 @@ export default function DefaultQuickSettings<
         return (
           <SubField
             key={key}
-            id={fieldId}
+            id={`${fieldId}.data`}
             sdk={sdk}
             setValue={setter}
             value={data[key]}

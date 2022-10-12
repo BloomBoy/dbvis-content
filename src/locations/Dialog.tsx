@@ -216,7 +216,14 @@ function PageLayoutEditorDialogue({
   layoutIndexRef.current = layoutIndex;
   const layout = fieldValue[layoutIndex] as StoredLayoutEntity | undefined;
 
+  console.log({
+    layoutIndex,
+    layout,
+    layoutId,
+  })
+
   const setValue = useCallback((newVal: StoredLayoutEntity[]) => {
+    console.log({ newVal });
     setFieldValue(newVal);
     return Promise.resolve(newVal as unknown as SerializedJSONValue);
   }, []);

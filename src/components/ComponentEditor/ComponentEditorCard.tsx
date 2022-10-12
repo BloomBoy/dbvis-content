@@ -1,5 +1,5 @@
 import { DeleteIcon } from '@contentful/f36-icons';
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import {
   ExtendedFieldConnectorChildProps,
@@ -95,7 +95,7 @@ export default function ComponentEditorCard<T extends ComponentTypeName>(
   const component = getComponentDefinition(item.type);
   const childProps: FullComponentProps<ComponentDataByTypeName<T>, T> = {
     ...item,
-    id,
+    baseId: id,
     sdk,
     setImmediateValue: wrappedSetImmediateValue,
     setValue: wrappedSetValue,

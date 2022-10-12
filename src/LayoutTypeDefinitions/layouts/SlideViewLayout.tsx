@@ -2,7 +2,7 @@ import makeLayout from '../../utils/makeLayout';
 import { HasHeaderLayoutData, hasHeaderSubFields } from './common';
 
 interface SlideViewData {
-  button: string;
+  button: unknown;
 }
 
 interface SlideViewLayoutData extends HasHeaderLayoutData {

@@ -4,7 +4,6 @@ import DefaultComponentSlotsEditor from "./DefaultComponentSlotsEditor";
 import { LayoutTypeName, FullLayoutProps, LayoutDataByTypeName, LayoutContainerDataByTypeName } from "../../LayoutTypeDefinitions";
 import SubField from "../SubField";
 import useSubFields from "../../hooks/useSubFields";
-import { useSubFieldEditor } from "../../hooks/useFieldEditor";
 import { pathToString } from "../../utils/deepValue";
 import { SerializedJSONValue } from "@contentful/app-sdk";
 
@@ -74,7 +73,7 @@ export default function DefaultModal<LayoutType extends LayoutTypeName>({
         return (
           <SubField
             key={key}
-            id={fieldId}
+            id={`${fieldId}.data`}
             sdk={sdk}
             setValue={setter}
             value={data[key]}

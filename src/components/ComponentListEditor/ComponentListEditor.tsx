@@ -1,26 +1,40 @@
-import components, { ComponentDataByTypeName, ComponentTypeName, StoredComponentDataByTypeName, StoredComponentEntity } from "../../ComponentTypeDefinitions";
-import { useSubFieldEditor } from "../../hooks/useFieldEditor";
-import { FieldMap, FullLayoutProps, LayoutContainerDataByTypeName, LayoutDataByTypeName, LayoutTypeName } from "../../LayoutTypeDefinitions";
-import ComponentEditorCard from "../ComponentEditor/ComponentEditorCard";
-import SortableList, { SortableContainerChildProps } from "../SortableList";
-import ComponentAction from "./ComponentActions";
+import components, {
+  ComponentDataByTypeName,
+  ComponentTypeName,
+  StoredComponentDataByTypeName,
+  StoredComponentEntity,
+} from '../../ComponentTypeDefinitions';
+import { useSubFieldEditor } from '../../hooks/useFieldEditor';
+import {
+  ComponentContainer,
+  FieldMap,
+  FullLayoutProps,
+  LayoutContainerDataByTypeName,
+  LayoutDataByTypeName,
+  LayoutTypeName,
+} from '../../LayoutTypeDefinitions';
+import ComponentEditorCard from '../ComponentEditor/ComponentEditorCard';
+import SortableList, { SortableContainerChildProps } from '../SortableList';
+import ComponentAction from './ComponentActions';
 import * as definitionHelpers from '../../utils/layoutDefinitionHelpers';
-import { useCallback, useMemo, useRef } from "react";
-import { SerializedJSONValue } from "@contentful/app-sdk";
-import { pathToString } from "../../utils/deepValue";
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { SerializedJSONValue } from '@contentful/app-sdk';
+import { pathToString } from '../../utils/deepValue';
 
 type Props<LayoutType extends LayoutTypeName> = FullLayoutProps<
-LayoutDataByTypeName<LayoutType>,
-LayoutContainerDataByTypeName<LayoutType>,
-LayoutType
+  LayoutDataByTypeName<LayoutType>,
+  LayoutContainerDataByTypeName<LayoutType>,
+  LayoutType
 > & {
   slotIndex: number;
-  slotId: string;
+  slot: ComponentContainer<LayoutContainerDataByTypeName<LayoutType>>;
   disabled?: boolean;
-}
+};
 
 function onLinkOrCreate(
-  setValue: (value: StoredComponentEntity[]) => Promise<SerializedJSONValue | undefined>,
+  setValue: (
+    value: StoredComponentEntity[],
+  ) => Promise<SerializedJSONValue | undefined>,
   items: StoredComponentEntity[],
   types: ComponentTypeName[],
   index = items.length,
@@ -31,7 +45,9 @@ function onLinkOrCreate(
     return {
       type,
       id,
-      data: definitionHelpers.getDefaultFieldMap(component.subFields as FieldMap<ComponentDataByTypeName<typeof type>>),
+      data: definitionHelpers.getDefaultFieldMap(
+        component.subFields as FieldMap<ComponentDataByTypeName<typeof type>>,
+      ),
     };
   });
   const newItems = Array.from(items);
@@ -39,15 +55,11 @@ function onLinkOrCreate(
   return setValue(newItems);
 }
 
-
-export default function ComponentListEditor<LayoutType extends LayoutTypeName>(props: Props<LayoutType>) {
-  const {
-    slots,
-    slotIndex,
-    sdk,
-    disabled = false,
-  } = props;
-  const value = slots[slotIndex].components;
+export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
+  props: Props<LayoutType>,
+) {
+  const { slot, sdk, disabled = false } = props;
+  const value = slot.components;
 
   const propsRef = useRef(props);
   propsRef.current = props;
@@ -69,26 +81,24 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(p
     [],
   );
 
-  const wrappedSetValue = useCallback(
-    (newValue: StoredComponentEntity[]) => {
-      const newSlots = Array.from(propsRef.current.slots);
-      newSlots[propsRef.current.slotIndex] = {
-        ...newSlots[propsRef.current.slotIndex],
-        components: newValue,
-      };
-      return propsRef.current.setValue({
-        data: propsRef.current.data,
-        id: propsRef.current.id,
-        slots: newSlots,
-        type: propsRef.current.type,
-      });
-    },
-    [],
-  );
+  const wrappedSetValue = useCallback((newValue: StoredComponentEntity[]) => {
+    const newSlots = Array.from(propsRef.current.slots);
+    newSlots[propsRef.current.slotIndex] = {
+      ...newSlots[propsRef.current.slotIndex],
+      components: newValue,
+    };
+    return propsRef.current.setValue({
+      data: propsRef.current.data,
+      id: propsRef.current.id,
+      slots: newSlots,
+      type: propsRef.current.type,
+    });
+  }, []);
 
   const onCreate = useCallback(
     (type: ComponentTypeName, index?: number) => {
-      const value = propsRef.current.slots[propsRef.current.slotIndex].components;
+      const value =
+        propsRef.current.slots[propsRef.current.slotIndex].components;
       if (value) {
         return onLinkOrCreate(wrappedSetImmediateValue, value, [type], index);
       }
@@ -98,30 +108,45 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(p
   );
 
   const baseIid = useMemo(() => {
-    return pathToString([{ index: propsRef.current.index, id: propsRef.current.id }, 'slots', { index: propsRef.current.slotIndex, id: propsRef.current.slotId }, 'components']);
+    return pathToString([
+      { index: propsRef.current.index, id: propsRef.current.id },
+      'slots',
+      { index: propsRef.current.slotIndex, id: propsRef.current.slot.id },
+      'components',
+    ]);
   }, []);
 
-  if (value == null) return null;;
+  if (value == null) return null;
   return (
     <SortableList
       items={value}
       isDisabled={disabled}
       setValue={wrappedSetValue}
       setImmediateValue={wrappedSetImmediateValue}
-      action={<ComponentAction
-        addNewComponent={onCreate}
-        isFull={false}
-        isEmpty={value.length === 0}
-      />}
+      action={
+        <ComponentAction
+          addNewComponent={onCreate}
+          isFull={false}
+          isEmpty={value.length === 0}
+        />
+      }
     >
-      {<ComponentType extends ComponentTypeName>({ items, item, index, isDisabled, DragHandle }: SortableContainerChildProps<StoredComponentDataByTypeName<ComponentType>>) => (
+      {<ComponentType extends ComponentTypeName>({
+        items,
+        item,
+        index,
+        isDisabled,
+        DragHandle,
+      }: SortableContainerChildProps<
+        StoredComponentDataByTypeName<ComponentType>
+      >) => (
         <ComponentEditorCard
           isDisabled={isDisabled}
           components={items}
           item={item}
           setValue={wrappedSetValue}
           setImmediateValue={wrappedSetImmediateValue}
-          id={pathToString([baseIid, {index, id: item.id}])}
+          id={pathToString([baseIid, { index, id: item.id }])}
           sdk={sdk}
           index={index}
           key={`${item.type}-${item.id}`}

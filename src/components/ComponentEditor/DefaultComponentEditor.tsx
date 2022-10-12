@@ -12,17 +12,12 @@ export default function DefaultComponentEditor<ComponentName extends ComponentTy
   ComponentName
 >) {
   const {
-    id,
     sdk,
-    index,
     data,
+    baseId,
     definition,
   } = props;
   const subFields = useSubFields(definition.subFields);
-  const fieldId = useMemo(() => {
-    return pathToString([{ index, id }]);
-  }, [index, id]);
-
   const propsRef = useRef(props);
   propsRef.current = props;
 
@@ -52,7 +47,6 @@ export default function DefaultComponentEditor<ComponentName extends ComponentTy
     });
   }, [subFields, setFieldValue]);
 
-
   return (
     <Stack flexDirection="column" alignItems="stretch" padding="spacingS">
       {subFieldsWithSetter.map(({ key, subField, widget, setter }) => {
@@ -60,7 +54,7 @@ export default function DefaultComponentEditor<ComponentName extends ComponentTy
         return (
         <SubField
           key={key}
-          id={fieldId}
+          id={`${baseId}.data`}
           sdk={sdk}
           setValue={setter}
           value={data[key]}

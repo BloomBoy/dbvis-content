@@ -1,7 +1,7 @@
 import makeComponent from '../../utils/makeComponent';
 
 type TextData = {
-  text: string;
+  text: unknown;
 }
 
 const Text = makeComponent<TextData>({

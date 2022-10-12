@@ -96,8 +96,10 @@ export default function LayoutListEditor() {
 
   const onCreate = useCallback(
     (type: typeof LAYOUT_TYPES[number], index?: number) =>
-      onLinkOrCreate(patchedFieldEditor.setImmediateValue, value, [type], index),
-    [patchedFieldEditor.setImmediateValue, value],
+      onLinkOrCreate(patchedFieldEditor.setImmediateValue, value, [type], index).then(() => {
+        sdk.entry.save();
+      }),
+    [patchedFieldEditor.setImmediateValue, sdk.entry, value],
   );
 
   return (
@@ -120,7 +122,9 @@ export default function LayoutListEditor() {
           sdk={sdk}
           key={`${item.type}-${item.id}`}
           onRemove={() =>
-            fieldEditor.setImmediateValue(items.filter((_value, i) => i !== index))
+            fieldEditor.setImmediateValue(items.filter((_value, i) => i !== index)).then(() => {
+              sdk.entry.save();
+            })
           }
           renderDragHandle={DragHandle}
           fieldEditor={patchedFieldEditor}

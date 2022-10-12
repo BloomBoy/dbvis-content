@@ -23,36 +23,26 @@ import ComponentListEditor from '../ComponentListEditor';
 import { SerializedJSONValue } from '@contentful/app-sdk';
 import { pathToString } from '../../utils/deepValue';
 
-export function SlotEditor<LayoutType extends LayoutTypeName>(props: FullLayoutProps<
-  LayoutDataByTypeName<LayoutType>,
-  LayoutContainerDataByTypeName<LayoutType>,
-  LayoutType
-> & {
-  slot: ComponentContainer<LayoutContainerDataByTypeName<LayoutType>>;
-  slotIndex: number;
-  onDelete: null | ((index: number) => void);
-}) {
+export function SlotEditor<LayoutType extends LayoutTypeName>(
+  props: FullLayoutProps<
+    LayoutDataByTypeName<LayoutType>,
+    LayoutContainerDataByTypeName<LayoutType>,
+    LayoutType
+  > & {
+    slot: ComponentContainer<LayoutContainerDataByTypeName<LayoutType>>;
+    slotIndex: number;
+    onDelete: null | ((index: number) => void);
+  },
+) {
   const propsRef = useRef(props);
   propsRef.current = props;
-  const {
-    onDelete,
-    slot,
-    slotIndex,
-    ...restProps
-  } = props;
-  const {
-    id,
-    sdk,
-    definition,
-    index,
-    setValue,
-    data,
-  } = restProps;
+  const { onDelete, ...restProps } = props;
+  const { id, sdk, slot, definition, index, slotIndex } = restProps;
   const title = definitionHelpers.useSlotTitle(
     definition.componentContainerTitle,
     slot.data,
     definition.componentContainerName,
-    index,
+    slotIndex,
   );
 
   const [singularSlotName] =
@@ -60,12 +50,13 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(props: FullLayoutP
 
   const setFieldValue = useCallback(
     async (key: keyof typeof subFields, value: any) => {
-      const newSlots = [
-        ...propsRef.current.slots,
-      ]
+      const newSlots = [...propsRef.current.slots];
       newSlots[propsRef.current.slotIndex] = {
         ...propsRef.current.slot,
-        data: value,
+        data: {
+          ...propsRef.current.slot.data,
+          [key]: value,
+        },
       };
       const ret = propsRef.current.setValue({
         id: propsRef.current.id,
@@ -79,27 +70,32 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(props: FullLayoutP
   );
 
   const handleOnRemove = useCallback(() => {
-    sdk.dialogs.openConfirm({
-      message: `This will delete the ${singularSlotName} '${title}' and any configuration and any components defined within. Reusable components are defined elsewhere and only imported. They will still be available to other layouts.`,
-      intent: 'negative',
-      confirmLabel: `Delete ${singularSlotName}`,
-      title: `Delete ${singularSlotName}?`,
-    }).then((shouldRemove) => {
-      if (shouldRemove) {
-        propsRef.current.setImmediateValue({
-          data: propsRef.current.data,
-          id: propsRef.current.id,
-          type: propsRef.current.type,
-          slots: [...propsRef.current.slots.slice(0, propsRef.current.slotIndex), ...propsRef.current.slots.slice(propsRef.current.slotIndex + 1)],
-        });
-      }
-    });
+    sdk.dialogs
+      .openConfirm({
+        message: `This will delete the ${singularSlotName} '${title}' and any configuration and any components defined within. Reusable components are defined elsewhere and only imported. They will still be available to other layouts.`,
+        intent: 'negative',
+        confirmLabel: `Delete ${singularSlotName}`,
+        title: `Delete ${singularSlotName}?`,
+      })
+      .then((shouldRemove) => {
+        if (shouldRemove) {
+          propsRef.current.setImmediateValue({
+            data: propsRef.current.data,
+            id: propsRef.current.id,
+            type: propsRef.current.type,
+            slots: [
+              ...propsRef.current.slots.slice(0, propsRef.current.slotIndex),
+              ...propsRef.current.slots.slice(propsRef.current.slotIndex + 1),
+            ],
+          });
+        }
+      });
   }, [sdk.dialogs, title, singularSlotName]);
 
   const subFields = useSubFields(definition.componentContainerFields);
   const fieldId = useMemo(() => {
-    return pathToString([{ index, id }]);
-  }, [index, id]);
+    return pathToString([{ index, id }, 'slots', { index: slotIndex, id: slot.id }]);
+  }, [index, id, slotIndex, slot.id]);
 
   const subFieldsWithSetter = useMemo(() => {
     return subFields.map((props) => {
@@ -111,15 +107,25 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(props: FullLayoutP
       };
     });
   }, [subFields, setFieldValue]);
-  
+
   return (
     <>
-      <Stack justifyContent="space-between"><SectionHeading marginBottom="none">{title}</SectionHeading>{onDelete != null ? <IconButton onClick={handleOnRemove} icon={<DeleteIcon variant="negative" />} title={`Delete ${singularSlotName}`} aria-label={`Delete ${singularSlotName}`} /> : null}</Stack>
+      <Stack justifyContent="space-between">
+        <SectionHeading marginBottom="none">{title}</SectionHeading>
+        {onDelete != null ? (
+          <IconButton
+            onClick={handleOnRemove}
+            icon={<DeleteIcon variant="negative" />}
+            title={`Delete ${singularSlotName}`}
+            aria-label={`Delete ${singularSlotName}`}
+          />
+        ) : null}
+      </Stack>
       {subFieldsWithSetter.map(({ key, subField, widget, setter }) => {
         return (
           <SubField
             key={key}
-            id={fieldId}
+            id={`${fieldId}.data`}
             sdk={sdk}
             setValue={setter}
             value={slot.data[key]}
@@ -129,7 +135,7 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(props: FullLayoutP
           />
         );
       })}
-      <ComponentListEditor {...props} slotIndex={index} slotId={slot.id} />
+      <ComponentListEditor {...props} />
     </>
   );
 }
@@ -164,24 +170,39 @@ export default function DefaultComponentSlotEditor<
     const oldSlots = propsRef.current.slots ?? [];
     const newSlot = definitionHelpers.createSlot(propsRef.current.definition);
     setIsCreating(true);
+    propsRef.current
+      .setImmediateValue({
+        data: propsRef.current.data,
+        id: propsRef.current.id,
+        type: propsRef.current.type,
+        slots: [...oldSlots, newSlot],
+      })
+      .finally(() => {
+        setIsCreating(false);
+      });
+  }, []);
+
+  const deleteSlot = useCallback((index: number) => {
+    const oldSlots = propsRef.current.slots;
+    if (oldSlots == null) {
+      return;
+    }
+    const newSlots = [
+      ...oldSlots.slice(0, index),
+      ...oldSlots.slice(index + 1),
+    ];
     propsRef.current.setImmediateValue({
       data: propsRef.current.data,
       id: propsRef.current.id,
       type: propsRef.current.type,
-      slots: [...oldSlots, newSlot],
-    }).finally(() => {
-      setIsCreating(false);
+      slots: newSlots,
     });
   }, []);
 
-  const deleteSlot = useCallback(
-    (index: number) => {
-      const oldSlots = propsRef.current.slots ?? [];
-    },
-    [],
-  );
-
-  const canDelete = configurableSlotCount !== false && slotCount > configurableSlotCount[0] && slotCount > 0;
+  const canDelete =
+    configurableSlotCount !== false &&
+    slotCount > configurableSlotCount[0] &&
+    slotCount > 0;
 
   /** No slots to display */
   if (configurableSlotCount === false || configurableSlotCount[1] === 0)
@@ -211,7 +232,13 @@ export default function DefaultComponentSlotEditor<
         </Box>
       )}
       {props.slots.map((slot, slotIndex) => (
-        <SlotEditor {...props} key={slot.id} slot={slot} slotIndex={slotIndex} onDelete={canDelete ? deleteSlot : null} />
+        <SlotEditor
+          {...props}
+          key={slot.id}
+          slot={slot}
+          slotIndex={slotIndex}
+          onDelete={canDelete ? deleteSlot : null}
+        />
       ))}
     </>
   );

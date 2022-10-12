@@ -35,7 +35,7 @@ export type AppProps<Data, Type extends string> = {
   removeValue(): Promise<undefined>;
   index: number;
   definition: ComponentDef<Data, Type>;
-  id: string;
+  baseId: string;
   renderDragHandle?(props: {
     drag: React.ReactElement<any, string | React.JSXElementConstructor<any>>;
   }): JSX.Element;

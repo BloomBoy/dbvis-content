@@ -1,31 +1,18 @@
 import { AlignmentData, alignmentFields, FieldMap } from "../../shared";
 
 export interface HasHeaderLayoutData extends AlignmentData {
-  title: string;
+  title?: string;
   subTitle?: string;
   renderHeader: boolean;
 }
 
 export const hasHeaderSubFields: FieldMap<HasHeaderLayoutData> = {
-  title: {
-    type: 'Symbol',
-    required: true,
-  },
-  subTitle: {
-    type: 'Symbol',
-    required: false,
-  },
+  title: 'Symbol',
+  subTitle: 'Symbol',
   ...alignmentFields,
   renderHeader: [
     {
       type: 'Boolean',
-      default: true,
-      required: true,
-      validations: [
-        {
-          in: ['true'],
-        },
-      ],
     },
     {
       id: 'boolean',
@@ -44,4 +31,46 @@ export const hasHeaderSubFields: FieldMap<HasHeaderLayoutData> = {
       },
     },
   ],
+}
+
+export interface LayoutThemeingData {
+  backgroundColor?: string;
+  textColor?: string;
+  sizing?: 'card' | 'content-contained' | 'content-stretched';
+}
+
+
+
+export const layoutThemeingFields: FieldMap<LayoutThemeingData> = {
+  backgroundColor: {
+    type: 'Symbol',
+    validations: [
+      {
+        regexp: {
+          pattern: '^#([A-F0-9]{6}|[A-F0-9]{3}|brand(?:\\[[0-9]00\\])?)$',
+          flags: 'i',
+        }
+      }
+    ],
+  },
+  textColor: {
+    type: 'Symbol',
+    validations: [
+      {
+        regexp: {
+          pattern: '^#([A-F0-9]{6}|[A-F0-9]{3}|brand(?:\\[[0-9]00\\])?)$',
+          flags: 'i',
+        }
+      }
+    ],
+  },
+  sizing: [{
+    type: 'Symbol',
+    required: false,
+    validations: [
+      {
+        in: ['card', 'content-contained', 'content-stretched'],
+      },
+    ],
+  }, { id: 'dropdown' }],
 }

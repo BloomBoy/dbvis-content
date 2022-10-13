@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Button, Heading, Paragraph, Stack } from '@contentful/f36-components';
+import {
+  Box,
+  Button,
+  Heading,
+  Paragraph,
+  Stack,
+} from '@contentful/f36-components';
 import {
   ContentTypeAPI,
   DialogExtensionSDK,
@@ -27,6 +33,7 @@ import { DefaultModal } from '../components/LayoutEditor';
 import { fromEntries } from '../utils/objects';
 import { css } from 'emotion';
 import tokens from '@contentful/f36-tokens';
+import throttle from 'lodash/throttle';
 
 type OptionalIds = Exclude<keyof IdsAPI, keyof DialogExtensionSDK['ids']>;
 
@@ -65,16 +72,19 @@ type FullPageProps<LayotType extends LayoutTypeName> = {
 
 const styles = {
   editorWrapper: css({
-    paddingTop: '70px',
+    height: '100vh',
+    overflow: 'hidden',
   }),
   editorHeader: css({
-    position: "fixed",
-    top: 0,
-    right: 0,
-    left: 0,
     width: '100%',
     backgroundColor: tokens.colorWhite,
     borderBottom: `1px solid ${tokens.gray200}`,
+    flexShrink: 0,
+  }),
+  editorBody: css({
+    width: '100%',
+    flexGrow: 1,
+    overflow: 'auto',
   }),
 };
 
@@ -84,7 +94,31 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
   const { sdk, layout, layoutDefinition, onRemove, layoutIndex } = props;
   const dialogueSdk = useSDK<DialogExtensionSDK>();
   const propsRef = useRef(props);
+  const [headerRef, setHeaderRef] = useState<HTMLDivElement | null>(null);
+  const [bodyRef, setBodyRef] = useState<HTMLDivElement | null>(null);
   propsRef.current = props;
+
+  useEffect(() => {
+    if (!headerRef || !bodyRef) return;
+    const recalculateHeight = throttle(() => {
+      const height = headerRef.clientHeight + bodyRef.clientHeight + 1;
+      sdk.window.updateHeight(height);
+    }, 500);
+    recalculateHeight();
+    window.addEventListener('resize', recalculateHeight);
+
+    const headerObserver = new MutationObserver(recalculateHeight);
+    headerObserver.observe(headerRef, { childList: true, subtree: true });
+  
+    const bodyObserver = new MutationObserver(recalculateHeight);
+    bodyObserver.observe(bodyRef, { childList: true, subtree: true });
+
+    return () => {
+      window.removeEventListener('resize', recalculateHeight);
+      headerObserver.disconnect();
+      bodyObserver.disconnect();
+    };
+  }, [headerRef, bodyRef, sdk.window]);
 
   const RenderModal = (
     layoutDefinition.renderModal == null ||
@@ -124,7 +158,6 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
     dialogueSdk.close();
   }, [dialogueSdk]);
 
-
   if (!RenderModal) {
     return <Paragraph>This layout type cannot be edited</Paragraph>;
   }
@@ -159,7 +192,6 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
     ...appProps,
   };
 
-
   let title: string;
   if (layoutDefinition.title == null) {
     title = '';
@@ -167,25 +199,42 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
     title = layoutDefinition.title(layout as any) || '';
   } else {
     title =
-      (layout.data[layoutDefinition.title] != null &&
-        String(layout.data[layoutDefinition.title])) ||
+      ((layout.data as Record<string, unknown>)[layoutDefinition.title] !=
+        null &&
+        String(
+          (layout.data as Record<string, unknown>)[layoutDefinition.title],
+        )) ||
       '';
   }
   title = title || `${layoutDefinition.name || layout.type}(${layout.id})`;
 
   return (
-    <Box className={styles.editorWrapper}>
-      <RenderModal {...fullLayoutProps} />
-      <Stack className={styles.editorHeader} alignItems="center" justifyContent="space-between" padding="spacingS">
+    <Stack flexDirection="column" className={styles.editorWrapper} spacing="none">
+      <Stack
+        className={styles.editorHeader}
+        alignItems="center"
+        justifyContent="space-between"
+        padding="spacingS"
+        ref={setHeaderRef}
+      >
         <Heading as="h2" marginBottom="none">
           {title}
         </Heading>
         <Stack>
-          <Button variant="negative" onClick={close}>Discard changes</Button>
-          <Button variant="primary" onClick={save}>Done</Button>
+          <Button variant="negative" onClick={close}>
+            Discard changes
+          </Button>
+          <Button variant="primary" onClick={save}>
+            Done
+          </Button>
         </Stack>
       </Stack>
-    </Box>
+      <Box className={styles.editorBody}>
+        <Box ref={setBodyRef}>
+          <RenderModal {...fullLayoutProps} />
+        </Box>
+      </Box>
+    </Stack>
   );
 }
 
@@ -220,7 +269,7 @@ function PageLayoutEditorDialogue({
     layoutIndex,
     layout,
     layoutId,
-  })
+  });
 
   const setValue = useCallback((newVal: StoredLayoutEntity[]) => {
     console.log({ newVal });
@@ -243,8 +292,13 @@ function PageLayoutEditorDialogue({
       title = layoutDef.title(layoutRef.current as any) || '';
     } else {
       title =
-        (layoutRef.current.data[layoutDef.title] != null &&
-          String(layoutRef.current.data[layoutDef.title])) ||
+        ((layoutRef.current.data as Record<string, unknown>)[layoutDef.title] !=
+          null &&
+          String(
+            (layoutRef.current.data as Record<string, unknown>)[
+              layoutDef.title
+            ],
+          )) ||
         '';
     }
     title =
@@ -491,13 +545,6 @@ const Dialog = () => {
   const sdk = useSDK<DialogExtensionSDK>();
 
   const invocation = sdk.parameters.invocation;
-
-  useEffect(() => {
-    sdk.window.startAutoResizer();
-    return () => {
-      sdk.window.stopAutoResizer();
-    };
-  }, [sdk.window]);
 
   if (isInvocation(invocation)) {
     const { type, ...props } = invocation;

@@ -1,9 +1,9 @@
 import makeLayout from '../../utils/makeLayout';
-import { HasHeaderLayoutData, hasHeaderSubFields } from './common';
+import { HasHeaderLayoutData, hasHeaderSubFields, LayoutThemeingData, layoutThemeingFields } from './common';
 
 interface ColumnData {}
 
-interface ColumnLayoutData extends HasHeaderLayoutData {
+interface ColumnLayoutData extends HasHeaderLayoutData, LayoutThemeingData {
 }
 
 
@@ -15,7 +15,8 @@ const ColumnLayout = makeLayout<ColumnLayoutData, ColumnData>(
     configurableSlotCount: 1,
     componentContainerName: ['Column', 'Columns'],
     subFields: {
-      ...hasHeaderSubFields
+      ...hasHeaderSubFields,
+      ...layoutThemeingFields,
     },
   },
 );

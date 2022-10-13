@@ -79,7 +79,7 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(
       })
       .then((shouldRemove) => {
         if (shouldRemove) {
-          propsRef.current.setImmediateValue({
+          propsRef.current.setValue({
             data: propsRef.current.data,
             id: propsRef.current.id,
             type: propsRef.current.type,
@@ -171,7 +171,7 @@ export default function DefaultComponentSlotEditor<
     const newSlot = definitionHelpers.createSlot(propsRef.current.definition);
     setIsCreating(true);
     propsRef.current
-      .setImmediateValue({
+      .setValue({
         data: propsRef.current.data,
         id: propsRef.current.id,
         type: propsRef.current.type,
@@ -191,7 +191,7 @@ export default function DefaultComponentSlotEditor<
       ...oldSlots.slice(0, index),
       ...oldSlots.slice(index + 1),
     ];
-    propsRef.current.setImmediateValue({
+    propsRef.current.setValue({
       data: propsRef.current.data,
       id: propsRef.current.id,
       type: propsRef.current.type,

@@ -30,8 +30,7 @@ function configureComponents<T extends {
 }
 
 export type AppProps<Data, Type extends string> = {
-  setValue(value: StoredComponentData<Data, Type>): Promise<SerializedJSONValue | undefined>;
-  setImmediateValue(value: StoredComponentData<Data, Type>): Promise<SerializedJSONValue | undefined>;
+  setValue(value: StoredComponentData<Data, Type>): Promise<unknown>;
   removeValue(): Promise<undefined>;
   index: number;
   definition: ComponentDef<Data, Type>;

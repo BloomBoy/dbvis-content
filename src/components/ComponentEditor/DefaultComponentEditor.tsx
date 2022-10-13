@@ -50,7 +50,6 @@ export default function DefaultComponentEditor<ComponentName extends ComponentTy
   return (
     <Stack flexDirection="column" alignItems="stretch" padding="spacingS">
       {subFieldsWithSetter.map(({ key, subField, widget, setter }) => {
-        if (subField.excludeFromQuicksettings) return null;
         return (
         <SubField
           key={key}

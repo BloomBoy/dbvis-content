@@ -1,7 +1,6 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FieldExtensionSDK } from '@contentful/app-sdk';
 import { useSDK } from '@contentful/react-apps-toolkit';
-import useFieldEditor from '../../hooks/useFieldEditor';
 import LayoutActions from './LayoutActions';
 import {
   layouts,
@@ -14,20 +13,6 @@ import * as definitionHelpers from '../../utils/definitionHelpers';
 import { LayoutEditorCard } from '../LayoutEditor';
 import SortableList, { SortableContainerChildProps } from '../SortableList';
 
-type EntryLink = {
-  sys: {
-    type: 'Link';
-    linkType: 'Entry';
-    id: string;
-  };
-};
-type AssetLink = {
-  sys: {
-    type: 'Link';
-    linkType: 'Asset';
-    id: string;
-  };
-};
 
 function onLinkOrCreate(
   setValue: (value: StoredLayoutEntity[]) => Promise<unknown>,
@@ -38,7 +23,10 @@ function onLinkOrCreate(
   const id = definitionHelpers.getId();
   const newLayouts: StoredLayoutEntity[] = types.map((type) => {
     const layout = layouts[type];
-    const configurableSlotCount = definitionHelpers.resolveConfigurableSlotCount(layout.configurableSlotCount);
+    const configurableSlotCount =
+      definitionHelpers.resolveConfigurableSlotCount(
+        layout.configurableSlotCount,
+      );
     const slots = layout.defaultSlots ?? [];
     if (configurableSlotCount !== false) {
       for (let i = slots.length; i < configurableSlotCount[0]; i++) {
@@ -61,73 +49,93 @@ const emptyArray: never[] = [];
 
 export default function LayoutListEditor() {
   const sdk = useSDK<FieldExtensionSDK>();
-  const fieldEditor = useFieldEditor<StoredLayoutEntity[]>({
-    field: sdk.field,
-  });
-  const assetFieldEditor = useFieldEditor<AssetLink[]>({
-    field: sdk.entry.fields.pageAssets.getForLocale(sdk.field.locale) ?? null,
-  });
-  const referenceFieldEditor = useFieldEditor<EntryLink[]>({
-    field:
-      sdk.entry.fields.pageReferences.getForLocale(sdk.field.locale) ?? null,
-  });
-
-  const fieldEditorRef = useRef(fieldEditor);
-  fieldEditorRef.current = fieldEditor;
-
-  const wrappedSetValue = useCallback<typeof fieldEditor.setValue>(
-    (...args) => {
-      return fieldEditorRef.current.setValue(...args);
-    },
-    [],
+  const fieldRef = useRef(sdk.field);
+  fieldRef.current = sdk.field;
+  const [isDisabled, setIsDisabled] = useState(false);
+  const [currentValue, setCurrentValue] = useState(
+    fieldRef.current.getValue() as StoredLayoutEntity[] | undefined,
   );
 
-  const patchedFieldEditor = useMemo<typeof fieldEditor>(
-    () => ({
-      ...fieldEditor,
-      setValue: wrappedSetValue,
-    }),
-    [fieldEditor, wrappedSetValue],
-  );
+  useEffect(() => {
+    const unlistenOnValue = sdk.field.onValueChanged((value) => {
+      setCurrentValue(value as StoredLayoutEntity[] | undefined);
+    });
+    const unlistenOnIsDisabled = sdk.field.onIsDisabledChanged((isDisabled) => {
+      setIsDisabled(isDisabled);
+    });
+    return () => {
+      unlistenOnValue();
+      unlistenOnIsDisabled();
+    }
+  }, [sdk.field]);
 
-  const { value: rawValue, setValue, disabled } = patchedFieldEditor;
+  const setValue = useCallback((value: StoredLayoutEntity[]): Promise<unknown> => {
+    return fieldRef.current.setValue(value);
+  }, []);
 
-  const value = Array.isArray(rawValue) ? rawValue : emptyArray;
+
+  const value = Array.isArray(currentValue) ? currentValue : emptyArray;
 
   const onCreate = useCallback(
     (type: typeof LAYOUT_TYPES[number], index?: number) =>
-      onLinkOrCreate(patchedFieldEditor.setImmediateValue, value, [type], index).then(() => {
+      onLinkOrCreate(
+        setValue,
+        value,
+        [type],
+        index,
+      ).then(() => {
         sdk.entry.save();
       }),
-    [patchedFieldEditor.setImmediateValue, sdk.entry, value],
+    [setValue, sdk.entry, value],
   );
+
+  const itemsWithSetter = useMemo(() => value.map((layout, index) => {
+    return {item: layout, id: layout.id, setter(newEntity: StoredLayoutEntity) {
+      const newValue = [...value];
+      newValue[index] = newEntity;
+      return setValue(newValue);
+    }};
+  }), [setValue, value]);
+
+  const setListValue = useCallback((newValue: typeof itemsWithSetter) => {
+    return fieldRef.current.setValue(newValue.map(({ item }) => item));
+  }, []);
 
   return (
     <SortableList
-      items={value}
-      isDisabled={disabled}
-      setValue={setValue}
-      setImmediateValue={fieldEditor.setImmediateValue}
-      action={<LayoutActions
-        addNewLayout={onCreate}
-        isFull={false}
-        isEmpty={value.length === 0}
-      />}
+      items={itemsWithSetter}
+      isDisabled={isDisabled}
+      setValue={setListValue}
+      action={
+        <LayoutActions
+          addNewLayout={onCreate}
+          isFull={false}
+          isEmpty={value.length === 0}
+        />
+      }
     >
-      {<LayoutType extends LayoutTypeName>({ items, item, index, isDisabled, DragHandle }: SortableContainerChildProps<StoredLayoutDataByTypeName<LayoutType>>) => (
+      {<LayoutType extends LayoutTypeName>({
+        item: {item, setter},
+        index,
+        isDisabled,
+        DragHandle,
+      }: SortableContainerChildProps<
+        { item: StoredLayoutDataByTypeName<LayoutType>, setter(newEntity: StoredLayoutDataByTypeName<LayoutType>): Promise<unknown>; id: string }
+      >) => (
         <LayoutEditorCard
           isDisabled={isDisabled}
           index={index}
           item={item}
+          setValue={setter}
           sdk={sdk}
           key={`${item.type}-${item.id}`}
           onRemove={() =>
-            fieldEditor.setImmediateValue(items.filter((_value, i) => i !== index)).then(() => {
-              sdk.entry.save();
-            })
+            setValue(value.filter(({ id }) => id !== item.id))
+              .then(() => {
+                sdk.entry.save();
+              })
           }
           renderDragHandle={DragHandle}
-          fieldEditor={patchedFieldEditor}
         />
       )}
     </SortableList>

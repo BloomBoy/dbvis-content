@@ -4,8 +4,7 @@ import React from 'react';
 import { FieldMap } from '../shared';
 
 export type AppProps<LayoutData, ContainerData, Type extends string> = {
-  setValue(value: StoredLayoutData<LayoutData, ContainerData, Type>): Promise<SerializedJSONValue | undefined>;
-  setImmediateValue(value: StoredLayoutData<LayoutData, ContainerData, Type>): Promise<SerializedJSONValue | undefined>;
+  setValue(value: StoredLayoutData<LayoutData, ContainerData, Type>): Promise<unknown>;
   removeValue(): Promise<undefined>;
   definition: LayoutTypeDef<LayoutData, ContainerData, Type>;
   index: number;

@@ -1,18 +1,12 @@
 import { DeleteIcon } from '@contentful/f36-icons';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 
-import {
-  ExtendedFieldConnectorChildProps,
-  useSubFieldEditor,
-} from '../../hooks/useFieldEditor';
 import components, {
   ComponentDataByTypeName,
   ComponentDef,
   ComponentTypeName,
   FullComponentProps,
   StoredComponentData,
-  StoredComponentDataByTypeName,
-  StoredComponentEntity,
 } from '../../ComponentTypeDefinitions';
 import {
   Stack,
@@ -24,10 +18,9 @@ import {
   IconVariant,
 } from '@contentful/f36-components';
 import DefaultComponentEditor from './DefaultComponentEditor';
-import { FieldExtensionSDK, SerializedJSONValue } from '@contentful/app-sdk';
+import { FieldExtensionSDK } from '@contentful/app-sdk';
 
 export type ComponentEditorProps<ComponentName extends ComponentTypeName> = {
-  components: StoredComponentEntity[];
   item: StoredComponentData<
     ComponentDataByTypeName<ComponentName>,
     ComponentName
@@ -36,11 +29,11 @@ export type ComponentEditorProps<ComponentName extends ComponentTypeName> = {
   index: number;
   isDisabled: boolean;
   setValue: (
-    newValue: StoredComponentEntity[],
-  ) => Promise<SerializedJSONValue | undefined>;
-  setImmediateValue: (
-    newValue: StoredComponentEntity[],
-  ) => Promise<SerializedJSONValue | undefined>;
+    newValue: StoredComponentData<
+      ComponentDataByTypeName<ComponentName>,
+      ComponentName
+    >,
+  ) => Promise<unknown>;
   onRemove(): Promise<unknown>;
   renderDragHandle?(props: {
     drag: React.ReactElement<any, string | React.JSXElementConstructor<any>>;
@@ -58,34 +51,10 @@ function getComponentDefinition<Key extends ComponentTypeName>(key: Key) {
 export default function ComponentEditorCard<T extends ComponentTypeName>(
   props: ComponentEditorProps<T>,
 ) {
-  const {
-    item,
-    id,
-    index,
-    renderDragHandle,
-    sdk,
-  } = props;
+  const { item, id, index, renderDragHandle, sdk, setValue } = props;
 
   const propsRef = useRef(props);
   propsRef.current = props;
-
-  const wrappedSetImmediateValue = useCallback(
-    (newValue: StoredComponentDataByTypeName<T>) => {
-      const newComponents = Array.from(propsRef.current.components);
-      newComponents[propsRef.current.index] = newValue;
-      return propsRef.current.setImmediateValue(newComponents);
-    },
-    [],
-  );
-
-  const wrappedSetValue = useCallback(
-    (newValue: StoredComponentDataByTypeName<T>) => {
-      const newComponents = Array.from(propsRef.current.components);
-      newComponents[propsRef.current.index] = newValue;
-      return propsRef.current.setValue(newComponents);
-    },
-    [],
-  );
 
   const removeValue = useCallback(async () => {
     await propsRef.current.onRemove();
@@ -97,8 +66,7 @@ export default function ComponentEditorCard<T extends ComponentTypeName>(
     ...item,
     baseId: id,
     sdk,
-    setImmediateValue: wrappedSetImmediateValue,
-    setValue: wrappedSetValue,
+    setValue,
     removeValue,
     index,
     definition: component,

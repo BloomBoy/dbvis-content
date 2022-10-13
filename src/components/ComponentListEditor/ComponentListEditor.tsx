@@ -1,6 +1,7 @@
 import components, {
   ComponentDataByTypeName,
   ComponentTypeName,
+  StoredComponentData,
   StoredComponentDataByTypeName,
   StoredComponentEntity,
 } from '../../ComponentTypeDefinitions';
@@ -33,7 +34,7 @@ type Props<LayoutType extends LayoutTypeName> = FullLayoutProps<
 function onLinkOrCreate(
   setValue: (
     value: StoredComponentEntity[],
-  ) => Promise<SerializedJSONValue | undefined>,
+  ) => Promise<unknown>,
   items: StoredComponentEntity[],
   types: ComponentTypeName[],
   index = items.length,
@@ -63,23 +64,6 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
   const propsRef = useRef(props);
   propsRef.current = props;
 
-  const wrappedSetImmediateValue = useCallback(
-    (newValue: StoredComponentEntity[]) => {
-      const newSlots = Array.from(propsRef.current.slots);
-      newSlots[propsRef.current.slotIndex] = {
-        ...newSlots[propsRef.current.slotIndex],
-        components: newValue,
-      };
-      return propsRef.current.setImmediateValue({
-        data: propsRef.current.data,
-        id: propsRef.current.id,
-        slots: newSlots,
-        type: propsRef.current.type,
-      });
-    },
-    [],
-  );
-
   const wrappedSetValue = useCallback((newValue: StoredComponentEntity[]) => {
     const newSlots = Array.from(propsRef.current.slots);
     newSlots[propsRef.current.slotIndex] = {
@@ -99,11 +83,11 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
       const value =
         propsRef.current.slots[propsRef.current.slotIndex].components;
       if (value) {
-        return onLinkOrCreate(wrappedSetImmediateValue, value, [type], index);
+        return onLinkOrCreate(wrappedSetValue, value, [type], index);
       }
       return Promise.resolve(undefined);
     },
-    [wrappedSetImmediateValue],
+    [wrappedSetValue],
   );
 
   const baseIid = useMemo(() => {
@@ -115,13 +99,49 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
     ]);
   }, []);
 
-  if (value == null) return null;
+  const oldItemsWithSetters = useRef<
+    | {
+        item: StoredComponentEntity;
+        id: string;
+        setter<Key extends ComponentTypeName>(
+          newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
+        ): Promise<unknown>;
+      }[]
+    | null
+  >(null);
+  const itemsWithSetter = useMemo(() => {
+    const val = value.map((layout, index) => {
+      if (oldItemsWithSetters.current?.[index].item === layout) {
+        return oldItemsWithSetters.current[index];
+      }
+      return {
+        item: layout,
+        id: layout.id,
+        setter<Key extends ComponentTypeName>(
+          newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
+        ) {
+          const newValue = [...value];
+          newValue[index] = newEntity as StoredComponentEntity;
+          return wrappedSetValue(newValue);
+        },
+      };
+    });
+    oldItemsWithSetters.current = val;
+    return val;
+  }, [wrappedSetValue, value]);
+
+  const setListValue = useCallback(
+    (newValue: typeof itemsWithSetter) => {
+      return wrappedSetValue(newValue.map(({ item }) => item));
+    },
+    [wrappedSetValue],
+  );
+
   return (
     <SortableList
-      items={value}
+      items={itemsWithSetter}
       isDisabled={disabled}
-      setValue={wrappedSetValue}
-      setImmediateValue={wrappedSetImmediateValue}
+      setValue={setListValue}
       action={
         <ComponentAction
           addNewComponent={onCreate}
@@ -132,25 +152,27 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
     >
       {<ComponentType extends ComponentTypeName>({
         items,
-        item,
+        item: { item, setter },
         index,
         isDisabled,
         DragHandle,
-      }: SortableContainerChildProps<
-        StoredComponentDataByTypeName<ComponentType>
-      >) => (
+      }: SortableContainerChildProps<{
+        item: StoredComponentDataByTypeName<ComponentType>;
+        setter<Key extends ComponentTypeName>(
+          newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
+        ): Promise<unknown>;
+        id: string;
+      }>) => (
         <ComponentEditorCard
           isDisabled={isDisabled}
-          components={items}
           item={item}
-          setValue={wrappedSetValue}
-          setImmediateValue={wrappedSetImmediateValue}
+          setValue={setter}
           id={pathToString([baseIid, { index, id: item.id }])}
           sdk={sdk}
           index={index}
           key={`${item.type}-${item.id}`}
           onRemove={() =>
-            wrappedSetImmediateValue(items.filter((_value, i) => i !== index))
+            wrappedSetValue(value.filter((_value, i) => i !== index))
           }
           renderDragHandle={DragHandle}
         />

@@ -70,15 +70,14 @@ type EditorProps<T extends { id: string }> = {
   items: T[];
   isDisabled: boolean;
   setValue: (value: T[]) => Promise<unknown>;
-  setImmediateValue: (value: T[]) => Promise<unknown>;
   action?: React.ReactNode;
   children: (props: SortableContainerChildProps<T>) => React.ReactNode;
 };
 
 export default function SortableList<T extends { id: string }>({
-  setImmediateValue,
   action,
   children,
+  setValue,
   ...props
 }: EditorProps<T>) {
   const { items } = props;
@@ -90,9 +89,9 @@ export default function SortableList<T extends { id: string }>({
   const onSortEnd: SortEndHandler = useCallback(
     ({ oldIndex, newIndex }) => {
       const newItems = arrayMove(items, oldIndex, newIndex);
-      setImmediateValue(newItems);
+      setValue(newItems);
     },
-    [items, setImmediateValue],
+    [items, setValue],
   );
 
   return (

@@ -7,12 +7,8 @@ import {
   StoredLayoutEntity,
 } from '../../LayoutTypeDefinitions';
 import { SettingsIcon, DeleteIcon } from '@contentful/f36-icons';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 
-import {
-  ExtendedFieldConnectorChildProps,
-  useSubFieldEditor,
-} from '../../hooks/useFieldEditor';
 import { FullLayoutProps, StoredLayoutData } from '../../LayoutTypeDefinitions';
 import {
   Stack,
@@ -34,11 +30,17 @@ export type LayoutEditorProps<T extends LayoutTypeName> = {
   >;
   isDisabled: boolean;
   index: number;
+  setValue(
+    value: StoredLayoutData<
+      LayoutDataByTypeName<T>,
+      LayoutContainerDataByTypeName<T>,
+      T
+    >,
+  ): Promise<unknown>;
   onRemove(): Promise<unknown>;
   renderDragHandle?(props: {
     drag: React.ReactElement<any, string | React.JSXElementConstructor<any>>;
   }): JSX.Element;
-  fieldEditor: ExtendedFieldConnectorChildProps<StoredLayoutEntity[]>;
   sdk: FieldExtensionSDK;
 };
 
@@ -50,36 +52,13 @@ function getLayoutDefinition<Key extends LayoutTypeName>(key: Key) {
   >;
 }
 
-export default function LayoutEditorCard<T extends LayoutTypeName>({
-  fieldEditor,
-  item,
-  index,
-  renderDragHandle,
-  onRemove,
-  sdk,
-}: LayoutEditorProps<T>) {
-  const subFieldEditor: ExtendedFieldConnectorChildProps<typeof item> =
-    useSubFieldEditor(fieldEditor, { index, id: item.id });
+export default function LayoutEditorCard<T extends LayoutTypeName>(
+  props: LayoutEditorProps<T>,
+) {
+  const { item, index, renderDragHandle, onRemove, sdk, setValue } = props;
   const layout = getLayoutDefinition(item.type);
-
-  const subFieldRef = useRef(subFieldEditor);
-  subFieldRef.current = subFieldEditor;
-
-  const setValue = useCallback(
-    async (value: typeof item) => {
-      const ret = await subFieldRef.current.setValue(value);
-      return ret as SerializedJSONValue | undefined;
-    },
-    []
-  );
-
-  const setImmediateValue = useCallback(
-    async (value: typeof item) => {
-      const ret = await subFieldRef.current.setImmediateValue(value);
-      return ret as SerializedJSONValue | undefined;
-    },
-    []
-  );
+  const propsRef = useRef(props);
+  propsRef.current = props;
 
   const removeValue = useCallback(async () => {
     await onRemove();
@@ -96,7 +75,6 @@ export default function LayoutEditorCard<T extends LayoutTypeName>({
     sdk,
     definition: layout,
     setValue,
-    setImmediateValue,
     removeValue,
     renderDragHandle: renderDragHandle,
   };
@@ -114,16 +92,18 @@ export default function LayoutEditorCard<T extends LayoutTypeName>({
   title = title || `${layout.name || item.type}(${item.id})`;
 
   const handleOnRemove = useCallback(() => {
-    sdk.dialogs.openConfirm({
-      message: `This will delete the layout '${title}' and any configuration and any components defined within. Reusable components are defined elsewhere and only imported. They will still be available to other layouts.`,
-      intent: 'negative',
-      confirmLabel: 'Delete layout',
-      title: 'Delete layout?',
-    }).then((shouldRemove) => {
-      if (shouldRemove) {
-        onRemove();
-      }
-    });
+    sdk.dialogs
+      .openConfirm({
+        message: `This will delete the layout '${title}' and any configuration and any components defined within. Reusable components are defined elsewhere and only imported. They will still be available to other layouts.`,
+        intent: 'negative',
+        confirmLabel: 'Delete layout',
+        title: 'Delete layout?',
+      })
+      .then((shouldRemove) => {
+        if (shouldRemove) {
+          onRemove();
+        }
+      });
   }, [onRemove, sdk.dialogs, title]);
 
   const RenderQuickSettings =
@@ -147,33 +127,42 @@ export default function LayoutEditorCard<T extends LayoutTypeName>({
         key: 'fulleditor',
         icon: SettingsIcon,
         activate: () => {
-          sdk.dialogs.openCurrentApp({
-            title: 'Edit layout',
-            position: 'center',
-            parameters: {
-              type: 'layoutEditor',
-              locale: sdk.field.locale,
-              layout: item.id,
-            },
-            width: 'fullWidth',
-            shouldCloseOnOverlayClick: false,
-            shouldCloseOnEscapePress: false,
-          }).then((value: StoredLayoutData<
-            LayoutDataByTypeName<T>,
-            LayoutContainerDataByTypeName<T>,
-            T
-          > | undefined | 'DELETE') => {
-            if (value == null) {
-              return;
-            }
-            if (value === 'DELETE') {
-              onRemove();
-              return;
-            }
-            setImmediateValue(value).then(() => {
-              sdk.entry.save();
-            });
-          });
+          sdk.dialogs
+            .openCurrentApp({
+              title: 'Edit layout',
+              position: 'center',
+              parameters: {
+                type: 'layoutEditor',
+                locale: sdk.field.locale,
+                layout: item.id,
+              },
+              width: 'fullWidth',
+              shouldCloseOnOverlayClick: false,
+              shouldCloseOnEscapePress: false,
+            })
+            .then(
+              (
+                value:
+                  | StoredLayoutData<
+                      LayoutDataByTypeName<T>,
+                      LayoutContainerDataByTypeName<T>,
+                      T
+                    >
+                  | undefined
+                  | 'DELETE',
+              ) => {
+                if (value == null) {
+                  return;
+                }
+                if (value === 'DELETE') {
+                  onRemove();
+                  return;
+                }
+                propsRef.current.setValue(value).then(() => {
+                  sdk.entry.save();
+                });
+              },
+            );
         },
         quickAccess: true,
       });
@@ -187,7 +176,15 @@ export default function LayoutEditorCard<T extends LayoutTypeName>({
       quickAccess: arr.length === 0,
     });
     return [arr, arr.some((a) => !a.quickAccess)];
-  }, [hasModal, handleOnRemove, sdk.dialogs, sdk.field.locale, sdk.entry, item.id, setImmediateValue, onRemove]);
+  }, [
+    hasModal,
+    handleOnRemove,
+    sdk.dialogs,
+    sdk.field.locale,
+    sdk.entry,
+    item.id,
+    onRemove,
+  ]);
 
   return (
     <EntryCard

@@ -168,7 +168,6 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
     LayoutType
   > = {
     setValue: wrappedSetValue,
-    setImmediateValue: wrappedSetValue,
     sdk,
     index: layoutIndex,
     definition: layoutDefinition as LayoutTypeDef<

@@ -23,7 +23,6 @@ export default function DefaultQuickSettings<
     sdk,
     definition,
     index,
-    setValue,
     data,
   } = props;
   const subFields = useSubFields(definition.subFields);
@@ -36,7 +35,7 @@ export default function DefaultQuickSettings<
 
   const setFieldValue = useCallback(
     async (key: keyof typeof subFields, value: any) => {
-      const ret = setValue({
+      const ret = propsRef.current.setValue({
         id: propsRef.current.id,
         slots: propsRef.current.slots,
         type: propsRef.current.type,
@@ -47,7 +46,7 @@ export default function DefaultQuickSettings<
       });
       return ret as unknown as SerializedJSONValue | undefined;
     },
-    [setValue],
+    [],
   );
 
   const subFieldsWithSetter = useMemo(() => {
@@ -68,7 +67,7 @@ export default function DefaultQuickSettings<
         return (
           <SubField
             key={key}
-            id={`${fieldId}.data`}
+            id={fieldId}
             sdk={sdk}
             setValue={setter}
             value={data[key]}

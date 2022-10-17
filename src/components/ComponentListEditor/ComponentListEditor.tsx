@@ -111,7 +111,7 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
   >(null);
   const itemsWithSetter = useMemo(() => {
     const val = value.map((layout, index) => {
-      if (oldItemsWithSetters.current?.[index].item === layout) {
+      if (oldItemsWithSetters.current?.[index]?.item === layout) {
         return oldItemsWithSetters.current[index];
       }
       return {

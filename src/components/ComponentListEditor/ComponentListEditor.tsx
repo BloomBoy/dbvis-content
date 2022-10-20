@@ -1,6 +1,8 @@
 import components, {
   ComponentDataByTypeName,
+  ComponentLink,
   ComponentTypeName,
+  isComponentLink,
   StoredComponentData,
   StoredComponentDataByTypeName,
   StoredComponentEntity,
@@ -17,9 +19,10 @@ import SortableList, { SortableContainerChildProps } from '../SortableList';
 import ComponentAction from './ComponentActions';
 import * as definitionHelpers from '../../utils/definitionHelpers';
 import { useCallback, useMemo, useRef } from 'react';
-import { SerializedJSONValue } from '@contentful/app-sdk';
 import { pathToString } from '../../utils/deepValue';
 import { FieldMap } from '../../shared';
+import { FetchingWrappedEntryCard } from '../FetchingWrappedEntryCard';
+import useAllContentTypes from '../../hooks/useAllContentTypes';
 
 type Props<LayoutType extends LayoutTypeName> = FullLayoutProps<
   LayoutDataByTypeName<LayoutType>,
@@ -33,14 +36,17 @@ type Props<LayoutType extends LayoutTypeName> = FullLayoutProps<
 
 function onLinkOrCreate(
   setValue: (
-    value: StoredComponentEntity[],
+    value: (StoredComponentEntity | ComponentLink<string>)[],
   ) => Promise<unknown>,
-  items: StoredComponentEntity[],
-  types: ComponentTypeName[],
+  items: (StoredComponentEntity | ComponentLink<string>)[],
+  types: (ComponentTypeName | ComponentLink<string>)[],
   index = items.length,
 ): Promise<unknown> {
   const id = definitionHelpers.getId();
   const newLayouts = types.map((type) => {
+    if (typeof type === 'object') {
+      return type;
+    }
     const component = components[type];
     return {
       type,
@@ -59,24 +65,28 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
   props: Props<LayoutType>,
 ) {
   const { slot, sdk, disabled = false } = props;
+  const allContentTypes = useAllContentTypes(sdk);
   const value = slot.components;
 
   const propsRef = useRef(props);
   propsRef.current = props;
 
-  const wrappedSetValue = useCallback((newValue: StoredComponentEntity[]) => {
-    const newSlots = Array.from(propsRef.current.slots);
-    newSlots[propsRef.current.slotIndex] = {
-      ...newSlots[propsRef.current.slotIndex],
-      components: newValue,
-    };
-    return propsRef.current.setValue({
-      data: propsRef.current.data,
-      id: propsRef.current.id,
-      slots: newSlots,
-      type: propsRef.current.type,
-    });
-  }, []);
+  const wrappedSetValue = useCallback(
+    (newValue: (StoredComponentEntity | ComponentLink<string>)[]) => {
+      const newSlots = Array.from(propsRef.current.slots);
+      newSlots[propsRef.current.slotIndex] = {
+        ...newSlots[propsRef.current.slotIndex],
+        components: newValue,
+      };
+      return propsRef.current.setValue({
+        data: propsRef.current.data,
+        id: propsRef.current.id,
+        slots: newSlots,
+        type: propsRef.current.type,
+      });
+    },
+    [],
+  );
 
   const onCreate = useCallback(
     (type: ComponentTypeName, index?: number) => {
@@ -99,24 +109,40 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
     ]);
   }, []);
 
-  const oldItemsWithSetters = useRef<
-    | {
-        item: StoredComponentEntity;
-        id: string;
-        setter<Key extends ComponentTypeName>(
-          newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
-        ): Promise<unknown>;
-      }[]
+  const oldMappedItems = useRef<
+    | (
+        | {
+            item: StoredComponentEntity;
+            id: string;
+            type: 'component';
+            setter<Key extends ComponentTypeName>(
+              newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
+            ): Promise<unknown>;
+          }
+        | {
+            item: ComponentLink<string>;
+            id: string;
+            type: 'link';
+          }
+      )[]
     | null
   >(null);
-  const itemsWithSetter = useMemo(() => {
-    const val = value.map((layout, index) => {
-      if (oldItemsWithSetters.current?.[index]?.item === layout) {
-        return oldItemsWithSetters.current[index];
+  const mappedItems = useMemo(() => {
+    const val = value.map((component, index) => {
+      if (oldMappedItems.current?.[index]?.item === component) {
+        return oldMappedItems.current[index];
+      }
+      if (isComponentLink(component)) {
+        return {
+          item: component,
+          id: component.id,
+          type: 'link' as const,
+        };
       }
       return {
-        item: layout,
-        id: layout.id,
+        item: component,
+        id: component.id,
+        type: 'component' as const,
         setter<Key extends ComponentTypeName>(
           newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
         ) {
@@ -126,12 +152,12 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
         },
       };
     });
-    oldItemsWithSetters.current = val;
+    oldMappedItems.current = val;
     return val;
   }, [wrappedSetValue, value]);
 
   const setListValue = useCallback(
-    (newValue: typeof itemsWithSetter) => {
+    (newValue: typeof mappedItems) => {
       return wrappedSetValue(newValue.map(({ item }) => item));
     },
     [wrappedSetValue],
@@ -139,7 +165,7 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
 
   return (
     <SortableList
-      items={itemsWithSetter}
+      items={mappedItems}
       isDisabled={disabled}
       setValue={setListValue}
       action={
@@ -152,31 +178,69 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
     >
       {<ComponentType extends ComponentTypeName>({
         items,
-        item: { item, setter },
+        item,
         index,
         isDisabled,
         DragHandle,
-      }: SortableContainerChildProps<{
-        item: StoredComponentDataByTypeName<ComponentType>;
-        setter<Key extends ComponentTypeName>(
-          newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
-        ): Promise<unknown>;
-        id: string;
-      }>) => (
-        <ComponentEditorCard
-          isDisabled={isDisabled}
-          item={item}
-          setValue={setter}
-          id={pathToString([baseIid, { index, id: item.id }])}
-          sdk={sdk}
-          index={index}
-          key={`${item.type}-${item.id}`}
-          onRemove={() =>
-            wrappedSetValue(value.filter((_value, i) => i !== index))
+      }: SortableContainerChildProps<
+        | {
+            item: StoredComponentDataByTypeName<ComponentType>;
+            setter<Key extends ComponentTypeName>(
+              newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
+            ): Promise<unknown>;
+            id: string;
+            type: 'component';
           }
-          renderDragHandle={DragHandle}
-        />
-      )}
+        | {
+            item: ComponentLink<string>;
+            id: string;
+            type: 'link';
+          }
+      >) => {
+        if (item.type === 'link') {
+          return (
+            <FetchingWrappedEntryCard
+              key={`${item.item.sys.id}-${item.id}`}
+              isInitiallyDisabled={false}
+              hasCardEditActions={false}
+              sdk={sdk}
+              viewType={'link'}
+              parameters={{
+                instance: {
+                  showCreateEntityAction: false,
+                  showLinkEntityAction: true,
+                  bulkEditing: false,
+                },
+              }}
+              renderDragHandle={DragHandle}
+              entryId={item.item.sys.id}
+              allContentTypes={allContentTypes}
+              isDisabled={isDisabled}
+              onRemove={() =>
+                wrappedSetValue(value.filter(({ id }) => id !== item.id)).then(() => {
+                  sdk.entry.save();
+                })
+              }
+            />
+          );
+        } else {
+          return (
+            <ComponentEditorCard
+              isDisabled={isDisabled}
+              item={item.item}
+              setValue={item.setter}
+              id={pathToString([baseIid, { index, id: item.id }])}
+              sdk={sdk}
+              index={index}
+              key={`${item.type}-${item.id}`}
+              onRemove={() =>
+                wrappedSetValue(value.filter((_value, i) => i !== index))
+              }
+              renderDragHandle={DragHandle}
+            />
+          );
+        }
+      }}
     </SortableList>
   );
 }

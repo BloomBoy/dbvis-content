@@ -19,6 +19,7 @@ import {
 } from '@contentful/f36-components';
 import DefaultComponentEditor from './DefaultComponentEditor';
 import { FieldExtensionSDK } from '@contentful/app-sdk';
+import { MissingEntityCard } from '@contentful/field-editor-reference';
 
 export type ComponentEditorProps<ComponentName extends ComponentTypeName> = {
   item: StoredComponentData<
@@ -42,68 +43,26 @@ export type ComponentEditorProps<ComponentName extends ComponentTypeName> = {
 };
 
 function getComponentDefinition<Key extends ComponentTypeName>(key: Key) {
-  return components[key] as unknown as ComponentDef<
-    ComponentDataByTypeName<Key>,
-    Key
-  >;
+  return components[key] as unknown as
+    | ComponentDef<ComponentDataByTypeName<Key>, Key>
+    | undefined;
 }
 
-export default function ComponentEditorCard<T extends ComponentTypeName>(
-  props: ComponentEditorProps<T>,
+function Editor<T extends ComponentTypeName>(
+  props: FullComponentProps<ComponentDataByTypeName<T>, T> & {
+    handleOnRemove(): void;
+  },
 ) {
-  const { item, id, index, renderDragHandle, sdk, setValue } = props;
+  const { handleOnRemove, ...childProps } = props;
 
   const propsRef = useRef(props);
   propsRef.current = props;
 
-  const removeValue = useCallback(async () => {
-    await propsRef.current.onRemove();
-    return undefined;
-  }, []);
-
-  const component = getComponentDefinition(item.type);
-  const childProps: FullComponentProps<ComponentDataByTypeName<T>, T> = {
-    ...item,
-    baseId: id,
-    sdk,
-    setValue,
-    removeValue,
-    index,
-    definition: component,
-    renderDragHandle: renderDragHandle,
-  };
-
-  let title: string | null = null;
-  if (typeof component.title === 'string') {
-    title =
-      (item.data[component.title] != null &&
-        String(item.data[component.title])) ||
-      null;
-  } else if (typeof component.title === 'function') {
-    title = component.title(childProps) || null;
-  }
-
-  const handleOnRemove = useCallback(() => {
-    sdk.dialogs
-      .openConfirm({
-        message: `This will delete the ${
-          component.name || item.type
-        } component${title != null ? ` '${title}'` : ''}`,
-        intent: 'negative',
-        confirmLabel: `Delete ${component.name || item.type} component`,
-        title: `Delete ${component.name || item.type} component?`,
-      })
-      .then((shouldRemove) => {
-        if (shouldRemove) {
-          removeValue();
-        }
-      });
-  }, [sdk.dialogs, component.name, item.type, title, removeValue]);
-
-  const Editor =
-    component.renderEditor == null || component.renderEditor === true
+  const ComponentEditor =
+    childProps.definition.renderEditor == null ||
+    childProps.definition.renderEditor === true
       ? DefaultComponentEditor
-      : component.renderEditor;
+      : childProps.definition.renderEditor;
 
   const [actions, renderMenu] = useMemo(() => {
     const arr: {
@@ -127,7 +86,7 @@ export default function ComponentEditorCard<T extends ComponentTypeName>(
 
   return (
     <EntryCard
-      contentType={component.name || item.type}
+      contentType={childProps.definition.name || childProps.type}
       icon={
         <>
           {actions
@@ -166,10 +125,83 @@ export default function ComponentEditorCard<T extends ComponentTypeName>(
             ))
           : undefined
       }
-      dragHandleRender={renderDragHandle}
-      withDragHandle={!!renderDragHandle}
+      dragHandleRender={childProps.renderDragHandle}
+      withDragHandle={!!childProps.renderDragHandle}
     >
-      {Editor && <Editor {...childProps} />}
+      {ComponentEditor && <ComponentEditor {...childProps} />}
     </EntryCard>
   );
+}
+
+export default function ComponentEditorCard<T extends ComponentTypeName>(
+  props: ComponentEditorProps<T>,
+) {
+  const { item, id, index, renderDragHandle, sdk, setValue } = props;
+
+  const propsRef = useRef(props);
+  propsRef.current = props;
+
+  const removeValue = useCallback(async () => {
+    await propsRef.current.onRemove();
+    return undefined;
+  }, []);
+  const component = getComponentDefinition(item.type);
+
+  const childProps:
+    | FullComponentProps<ComponentDataByTypeName<T>, T>
+    | (Omit<FullComponentProps<ComponentDataByTypeName<T>, T>, 'definition'> & {
+        definition: undefined;
+      }) = {
+    ...item,
+    baseId: id,
+    sdk,
+    setValue,
+    removeValue,
+    index,
+    definition: component,
+    renderDragHandle: renderDragHandle,
+  };
+
+  const childPropsRef = useRef(childProps);
+  childPropsRef.current = childProps;
+
+  const handleOnRemove = useCallback(() => {
+    const fullProps =
+      childPropsRef.current.definition != null ? childPropsRef.current : null;
+    const componentName = component?.name || item.type;
+    let title: string | null = null;
+    if (typeof fullProps?.definition?.title === 'string') {
+      title =
+        (item.data[fullProps?.definition?.title] != null &&
+          String(item.data[fullProps?.definition?.title])) ||
+        null;
+    } else if (typeof fullProps?.definition?.title === 'function') {
+      title = fullProps?.definition?.title(fullProps) || null;
+    }
+    sdk.dialogs
+      .openConfirm({
+        message: `This will delete the ${componentName} component${
+          title ? ` '${title}'` : ''
+        }`,
+        intent: 'negative',
+        confirmLabel: `Delete ${componentName} component`,
+        title: `Delete ${componentName} component?`,
+      })
+      .then((shouldRemove) => {
+        if (shouldRemove) {
+          removeValue();
+        }
+      });
+  }, [component, sdk.dialogs, item.type, item.data, removeValue]);
+
+  if (childProps.definition == null) {
+    return (
+      <MissingEntityCard
+        entityType="Entry"
+        onRemove={handleOnRemove}
+        isDisabled={props.isDisabled}
+      />
+    );
+  }
+  return <Editor {...childProps} handleOnRemove={handleOnRemove} />;
 }

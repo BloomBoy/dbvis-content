@@ -1,3 +1,3 @@
-export { default as text } from './text';
-export { default as button } from './button';
-export { default as image } from './image';
+export { default as textComponent } from './text';
+export { default as buttonComponent } from './button';
+export { default as imageComponent } from './image';

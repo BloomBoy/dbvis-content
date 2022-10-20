@@ -2,9 +2,7 @@ import { SerializedJSONValue } from "@contentful/app-sdk";
 import { Stack } from "@contentful/f36-components";
 import { useMemo, useRef, useCallback } from "react";
 import { ComponentDataByTypeName, FullComponentProps, ComponentTypeName } from "../../ComponentTypeDefinitions";
-import { useSubFieldEditor } from "../../hooks/useFieldEditor";
 import useSubFields from "../../hooks/useSubFields";
-import { pathToString } from "../../utils/deepValue";
 import SubField from "../SubField";
 
 export default function DefaultComponentEditor<ComponentName extends ComponentTypeName>(props: FullComponentProps<

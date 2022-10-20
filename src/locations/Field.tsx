@@ -1,93 +1,120 @@
-import React, { useEffect } from "react";
-import { Note, Paragraph } from "@contentful/f36-components";
+import React, { useEffect } from 'react';
+import { Note, Paragraph, List, ListItem } from '@contentful/f36-components';
 import {
   ContentTypeAPI,
   EditorExtensionSDK,
   FieldExtensionSDK,
-} from "@contentful/app-sdk";
-import { /* useCMA, */ useSDK } from "@contentful/react-apps-toolkit";
+} from '@contentful/app-sdk';
+import { /* useCMA, */ useSDK } from '@contentful/react-apps-toolkit';
 import { EntityProvider } from '@contentful/field-editor-reference';
-import LayoutListEditor from "../components/LayoutListEditor";
+import LayoutListEditor from '../components/LayoutListEditor';
 
 function IncorrectContentType(props: {
   sdk: EditorExtensionSDK;
-  missingFields: {
-    id: string;
-    type: string;
-  }[];
+  errors: { key: string; message: string }[];
 }) {
   return (
     <Note variant="negative">
       <Paragraph>
-        Due to technical reasons, some require helper fields to be defined in
-        the content type. Please add the following fields to the content type:
+        This content type is not properly configured for the Layout Editor. The
+        following errors were detected:
       </Paragraph>
-      <Paragraph>
-        {props.missingFields
-          .map((item) => `${item.id} (${item.type})`)
-          .join(", ")}
-      </Paragraph>
+      <List>
+        {props.errors.map(({ key, message }) => (
+          <ListItem key={key}>{message}</ListItem>
+        ))}
+      </List>
     </Note>
   );
 }
 
-function NonStandardFieldId({ sdk }: { sdk: FieldExtensionSDK }) {
-  const [isOpen, setIsOpen] = React.useState(sdk.field.id !== "pageLayout");
-  if (!isOpen) return null;
-  return (
-    <Note
-      variant="warning"
-      title={'This field is not named "pageLayout"'}
-      withCloseButton
-      onClose={() => setIsOpen(false)}
-    >
-      This is using a non-standard id for the field. This will not get rendered
-      correctly.
-    </Note>
-  );
-}
-
-function hasAssetList(contentType: ContentTypeAPI) {
+function getAssetListField(contentType: ContentTypeAPI, fieldId: string) {
   return contentType.fields.find(
     (field) =>
-      field.id === "pageAssets" &&
-      field.type === "Array" &&
-      field.items?.type === "Link" &&
-      field.items.linkType === "Asset"
+      field.id === fieldId &&
+      field.type === 'Array' &&
+      field.items?.type === 'Link' &&
+      field.items.linkType === 'Asset',
   );
 }
 
-function hasReferenceList(contentType: ContentTypeAPI) {
+function getReferenceListField(contentType: ContentTypeAPI, fieldId: string) {
   return contentType.fields.find(
     (field) =>
-      field.id === "pageReferences" &&
-      field.type === "Array" &&
-      field.items?.type === "Link" &&
-      field.items.linkType === "Entry"
+      field.id === fieldId &&
+      field.type === 'Array' &&
+      field.items?.type === 'Link' &&
+      field.items.linkType === 'Entry',
   );
 }
 
-function isValidContentType(contentType: ContentTypeAPI) {
-  const missingFields: {
-    id: string;
-    type: string;
+function isValidContentType(sdk: FieldExtensionSDK) {
+  const errors: {
+    key: string;
+    message: string;
   }[] = [];
+  const { assetListId: pageAssetsFieldId, entryListId: pageReferencesFieldId } =
+    sdk.parameters.instance;
+  const contentType = sdk.contentType;
+  const contentField = contentType.fields.find((field) => {
+    return field.id === sdk.field.id;
+  });
 
-  if (!hasAssetList(contentType)) {
-    missingFields.push({
-      id: "pageAssets",
-      type: "Array<Asset>",
+  if (contentField == null) {
+    errors.push({
+      key: 'contentField',
+      message: 'FATAL ERROR! Could not detect current field.',
     });
+    return [false, errors] as const;
   }
 
-  if (!hasReferenceList(contentType)) {
-    missingFields.push({
-      id: "pageReferences",
-      type: "Array<Entry>",
+  if (typeof pageAssetsFieldId !== 'string' && pageAssetsFieldId !== '') {
+    errors.push({
+      key: 'pageAssetsFieldId',
+      message: `The 'pageAssetsFieldId' instance parameter must be a non-empty string`,
     });
+  } else {
+    const assetListField = getAssetListField(contentType, pageAssetsFieldId);
+    if (assetListField == null) {
+      errors.push({
+        key: `asset-${pageAssetsFieldId}`,
+        message: `Field for Page Asset Reference (field id: '${pageAssetsFieldId}') is missing or of the wrong type, expected type Array<Asset>`,
+      });
+    } else if (assetListField.localized !== contentField.localized) {
+      errors.push({
+        key: `asset-${pageAssetsFieldId}`,
+        message: `${assetListField.name} must have the same localization setting as ${contentField.name}`,
+      });
+    }
   }
 
-  return [missingFields.length === 0, missingFields] as const;
+  if (
+    typeof pageReferencesFieldId !== 'string' &&
+    pageReferencesFieldId !== ''
+  ) {
+    errors.push({
+      key: 'pageReferencesFieldId',
+      message: `The 'pageReferencesFieldId' instance parameter must be a non-empty string`,
+    });
+  } else {
+    const referenceListField = getReferenceListField(
+      contentType,
+      pageReferencesFieldId,
+    );
+    if (referenceListField == null) {
+      errors.push({
+        key: `reference-${pageReferencesFieldId}`,
+        message: `Field ${pageReferencesFieldId} is missing or of the wrong type, expected type Array<Entry>`,
+      });
+    } else if (referenceListField.localized !== contentField.localized) {
+      errors.push({
+        key: `reference-${pageReferencesFieldId}`,
+        message: `${referenceListField.name} must have the same localization setting as ${contentField.name}`,
+      });
+    }
+  }
+
+  return [errors.length === 0, errors] as const;
 }
 
 export default function Field() {
@@ -96,20 +123,25 @@ export default function Field() {
     sdk.window.startAutoResizer();
     return () => {
       sdk.window.stopAutoResizer();
-    }
+    };
   }, [sdk.window]);
-  const [valid, missingFields] = isValidContentType(sdk.contentType);
-
-
+  const [valid, errors] = isValidContentType(sdk);
 
   if (!valid) {
-    return <IncorrectContentType sdk={sdk} missingFields={missingFields} />;
+    return <IncorrectContentType sdk={sdk} errors={errors} />;
   }
+
+  const { assetListId, entryListId } = sdk.parameters.instance;
+
+  const { [assetListId]: pageAssetList, [entryListId]: pageReferenceList } =
+    sdk.entry.fields;
 
   return (
     <EntityProvider sdk={sdk}>
-      <NonStandardFieldId sdk={sdk} />
-      <LayoutListEditor />
+      <LayoutListEditor
+        assetListField={pageAssetList.getForLocale(sdk.field.locale)}
+        referenceListField={pageReferenceList.getForLocale(sdk.field.locale)}
+      />
     </EntityProvider>
   );
-};
+}

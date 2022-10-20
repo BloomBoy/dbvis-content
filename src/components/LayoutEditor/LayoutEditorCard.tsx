@@ -4,7 +4,6 @@ import {
   layouts,
   LayoutTypeDef,
   LayoutTypeName,
-  StoredLayoutEntity,
 } from '../../LayoutTypeDefinitions';
 import { SettingsIcon, DeleteIcon } from '@contentful/f36-icons';
 import React, { useCallback, useMemo, useRef } from 'react';
@@ -20,7 +19,7 @@ import {
   IconVariant,
 } from '@contentful/f36-components';
 import DefaultQuickSettings from './DefaultQuickSettings';
-import { FieldExtensionSDK, SerializedJSONValue } from '@contentful/app-sdk';
+import { FieldExtensionSDK } from '@contentful/app-sdk';
 
 export type LayoutEditorProps<T extends LayoutTypeName> = {
   item: StoredLayoutData<

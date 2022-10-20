@@ -8,7 +8,7 @@ interface SlideViewData {
 interface SlideViewLayoutData extends HasHeaderLayoutData {
 }
 
-const ColumnLayoutEditor = makeLayout<SlideViewLayoutData, SlideViewData>({
+const SlideViewLayout = makeLayout<SlideViewLayoutData, SlideViewData>({
   name: 'Slideview',
   title: 'title',
   componentContainerFields: {
@@ -24,4 +24,4 @@ const ColumnLayoutEditor = makeLayout<SlideViewLayoutData, SlideViewData>({
   },
 });
 
-export default ColumnLayoutEditor;
+export default SlideViewLayout;

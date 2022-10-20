@@ -41,7 +41,7 @@ export default function ComponentActions({
   return (
     <div className={!isEmpty ? '' : styles.container}>
       <ActionsMenuTrigger
-        layoutTypesLabel="Layouts"
+        label="Layouts"
         onSelect={onSelect}
         items={items}
       >

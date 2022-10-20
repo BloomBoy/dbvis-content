@@ -200,7 +200,7 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
         return undefined;
       },
       setInvalid: () => {},
-      setValue,
+      setValue: setValue,
       validations: field.validations ?? [],
       disabled: field.disabled,
       type: field.type,

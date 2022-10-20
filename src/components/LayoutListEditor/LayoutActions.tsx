@@ -1,14 +1,22 @@
 import * as styles from './styles';
 import { Button } from '@contentful/f36-components';
 import { PlusIcon, ChevronDownIcon } from '@contentful/f36-icons';
-import { layouts, LayoutTypeName, LAYOUT_TYPES } from '../../LayoutTypeDefinitions';
+import {
+  LayoutLinks,
+  layouts,
+  LayoutTypeName,
+  LAYOUT_TYPES,
+  linkableLayoutTypes,
+} from '../../LayoutTypeDefinitions';
 import { useCallback, useMemo } from 'react';
 import ActionsMenuTrigger from '../ActionsMenuTrigger';
 
 const hasDropdown = LAYOUT_TYPES.length > 1;
 
 export type LayoutActionsProps = {
-  addNewLayout: (layoutType: typeof LAYOUT_TYPES[number]) => Promise<unknown>;
+  addNewLayout: (
+    layoutType: typeof LAYOUT_TYPES[number] | LayoutLinks['type'],
+  ) => Promise<unknown>;
   isFull: boolean;
   isEmpty: boolean;
 };
@@ -18,18 +26,42 @@ export default function LayoutActions({
   isEmpty,
   addNewLayout,
 }: LayoutActionsProps) {
+  const onSelect = useCallback(
+    ({ key }: { key: LayoutTypeName | LayoutLinks['type'] }) => {
+      return addNewLayout(key);
+    },
+    [addNewLayout],
+  );
 
-  const onSelect = useCallback(({ key }: { key: LayoutTypeName }) => {
-    return addNewLayout(key);    
-  }, [addNewLayout]);
-
-  const items = useMemo(() => {
-    return LAYOUT_TYPES.map((type) => ({
-      label: layouts[type].name,
-      key: type,
-    }));
+  const categories = useMemo<
+    {
+      label: string;
+      readonly items: {
+        readonly label: string;
+        readonly key: LayoutTypeName | LayoutLinks['type'];
+      }[];
+    }[]
+  >(() => {
+    return [
+      {
+        label: 'Reusable',
+        items: linkableLayoutTypes.map<{
+          label: string;
+          key: LayoutLinks['type'];
+        }>((id) => ({
+          label: `${id[0].toUpperCase()}${id.slice(1)}`,
+          key: `${id}Link`,
+        })),
+      },
+      {
+        label: 'New layout',
+        items: LAYOUT_TYPES.map((type) => ({
+          label: layouts[type].name,
+          key: type,
+        })),
+      },
+    ];
   }, []);
-
 
   if (isFull) {
     return null; // Don't render link actions if we reached max allowed links.
@@ -40,11 +72,7 @@ export default function LayoutActions({
   // nicely aligned with asset cards.
   return (
     <div className={!isEmpty ? '' : styles.container}>
-      <ActionsMenuTrigger
-        layoutTypesLabel="Layouts"
-        onSelect={onSelect}
-        items={items}
-      >
+      <ActionsMenuTrigger onSelect={onSelect} categories={categories}>
         {({ isSelecting }) => (
           <Button
             endIcon={hasDropdown ? <ChevronDownIcon /> : undefined}

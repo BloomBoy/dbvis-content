@@ -1,9 +1,10 @@
-import { StoredComponentEntity } from '../ComponentTypeDefinitions';
-import { FieldExtensionSDK, SerializedJSONValue } from '@contentful/app-sdk';
+import { ComponentLink, StoredComponentEntity } from '../ComponentTypeDefinitions';
+import { FieldExtensionSDK } from '@contentful/app-sdk';
 import React from 'react';
 import { FieldMap } from '../shared';
+import { Link } from 'contentful-management';
 
-export type AppProps<LayoutData, ContainerData, Type extends string> = {
+export type AppProps<LayoutData, ContainerData, Type extends `${string}Layout`> = {
   setValue(value: StoredLayoutData<LayoutData, ContainerData, Type>): Promise<unknown>;
   removeValue(): Promise<undefined>;
   definition: LayoutTypeDef<LayoutData, ContainerData, Type>;
@@ -15,12 +16,12 @@ export type AppProps<LayoutData, ContainerData, Type extends string> = {
 };
 
 export interface ComponentContainer<ContainerData> {
-  components: StoredComponentEntity[];
+  components: (StoredComponentEntity | ComponentLink<string>)[];
   id: string;
   data: Partial<ContainerData>;
 }
 
-export interface LayoutTypeDef<LayoutData, ContainerData, Type extends string> {
+export interface LayoutTypeDef<LayoutData, ContainerData, Type extends `${string}Layout`> {
   name: string;
   title:
     | keyof LayoutData
@@ -49,7 +50,7 @@ export interface LayoutTypeDef<LayoutData, ContainerData, Type extends string> {
 export type StoredLayoutData<
   LayoutData,
   ContainerData,
-  Type extends string = string,
+  Type extends `${string}Layout` = `${string}Layout`,
 > = {
   data: Partial<LayoutData>;
   slots: ComponentContainer<ContainerData>[];
@@ -60,6 +61,12 @@ export type StoredLayoutData<
 export type FullLayoutProps<
   LayoutData,
   ContainerData,
-  Type extends string = string,
+  Type extends `${string}Layout` = `${string}Layout`,
 > = StoredLayoutData<LayoutData, ContainerData, Type> &
   AppProps<LayoutData, ContainerData, Type>;
+
+export interface LayoutLink<T extends string> {
+  type: `${T}Link`;
+  id: string;
+  target: Link<'Entry'>;
+}

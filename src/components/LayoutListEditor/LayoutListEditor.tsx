@@ -9,6 +9,7 @@ import { FieldAPI, FieldExtensionSDK } from '@contentful/app-sdk';
 import { useSDK } from '@contentful/react-apps-toolkit';
 import LayoutActions from './LayoutActions';
 import {
+  ComponentContainer,
   isLayoutEntity,
   isLayoutEntityType,
   isLayoutLink,
@@ -49,7 +50,7 @@ function onLinkOrCreate(
         definitionHelpers.resolveConfigurableSlotCount(
           layout.configurableSlotCount,
         );
-      const slots = layout.defaultSlots ?? [];
+      const slots: ComponentContainer<any>[] = layout.defaultSlots ?? [];
       if (configurableSlotCount !== false) {
         for (let i = slots.length; i < configurableSlotCount[0]; i++) {
           slots.push(definitionHelpers.createSlot(layout));
@@ -59,7 +60,7 @@ function onLinkOrCreate(
         type,
         id,
         slots,
-        data: definitionHelpers.getDefaultFieldMap(layout.subFields),
+        data: definitionHelpers.getDefaultFieldMap(layout.subFields as any),
       };
     })
     .filter((item): item is NonNullable<typeof item> => item != null);

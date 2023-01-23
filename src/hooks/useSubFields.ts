@@ -11,7 +11,7 @@ export default function useSubFields<Data>(subFields: FieldMap<Data>) {
         if (typeof subField[0] === 'string') {
           field = {
             type: subField[0],
-          };
+          } as FieldTypeDefinition<Data[keyof Data & string]>;
         } else {
           field = subField[0];
         }
@@ -20,9 +20,9 @@ export default function useSubFields<Data>(subFields: FieldMap<Data>) {
         if (typeof subField === 'string') {
           field = {
             type: subField,
-          };
+          } as FieldTypeDefinition<Data[keyof Data & string]>;
         } else {
-          field = subField;
+          field = subField as FieldTypeDefinition<Data[keyof Data & string]>;
         }
       }
       return {

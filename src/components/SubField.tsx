@@ -36,6 +36,8 @@ import {
 } from '@contentful/field-editor-reference';
 import { RichTextEditor } from '@contentful/field-editor-rich-text';
 import { MarkdownEditor } from '@contentful/field-editor-markdown';
+import { LabeledDropdownEditor } from '../extraFieldWidgets/labeledDropdown';
+import titleFromKey from '../utils/titleFromKey';
 
 export const styles = {
   withFocusBar: css({
@@ -106,9 +108,13 @@ const widgetComponents: Record<string, [React.ComponentType<any>, any?]> = {
   assetGalleryEditor: [MultipleMediaEditor, { viewType: 'card' }],
   richTextEditor: [RichTextEditor],
   markdown: [MarkdownEditor],
+  labeledDropdown: [LabeledDropdownEditor],
 };
 
-export default function SubField<Data, Key extends keyof FieldMap<Data>>({
+export default function SubField<
+  Data,
+  Key extends keyof FieldMap<Data> & string,
+>({
   id,
   sdk,
   setValue,
@@ -147,10 +153,10 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
         sdk.contentType.fields.find((f) => f.id === sdk.field.id)?.localized ??
         false,
       disabled: disabled,
-      name: subField.title ?? subFieldKey,
+      name: subField.title ?? titleFromKey(subFieldKey),
       required: subField.required ?? false,
       type: subField.type,
-      items: subField.items,
+      items: 'items' in subField ? subField.items : undefined,
       validations: subField.validations,
       defaultValue: subField.default as KeyValueMap,
     }),
@@ -267,10 +273,10 @@ export default function SubField<Data, Key extends keyof FieldMap<Data>>({
       isRequired={subField.required}
     >
       {renderHeading ? (
-        renderHeading(subField.title ?? subFieldKey)
+        renderHeading(subField.title ?? titleFromKey(subFieldKey))
       ) : (
         <FormControl.Label className={styles.label}>
-          {subField.title ?? subFieldKey}
+          {subField.title ?? titleFromKey(subFieldKey)}
         </FormControl.Label>
       )}
       <WidgetComponent

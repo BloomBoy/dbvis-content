@@ -170,12 +170,18 @@ export default function ComponentEditorCard<T extends ComponentTypeName>(
       childPropsRef.current.definition != null ? childPropsRef.current : null;
     const componentName = component?.name || item.type;
     let title: string | null = null;
-    if (typeof fullProps?.definition?.title === 'string') {
+    if (
+      typeof (item.data as { _internalTitle?: unknown })._internalTitle ===
+        'string' &&
+      (item.data as { _internalTitle?: unknown })._internalTitle
+    ) {
+      title = (item.data as { _internalTitle?: string })._internalTitle || null;
+    } else if (title == null && typeof fullProps?.definition?.title === 'string') {
       title =
         (item.data[fullProps?.definition?.title] != null &&
           String(item.data[fullProps?.definition?.title])) ||
         null;
-    } else if (typeof fullProps?.definition?.title === 'function') {
+    } else if (title == null && typeof fullProps?.definition?.title === 'function') {
       title = fullProps?.definition?.title(fullProps) || null;
     }
     sdk.dialogs

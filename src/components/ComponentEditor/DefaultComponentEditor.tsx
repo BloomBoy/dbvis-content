@@ -58,6 +58,7 @@ export default function DefaultComponentEditor<ComponentName extends ComponentTy
           subField={subField}
           subFieldKey={key}
           widget={widget}
+          helpText={subField.helpText}
         />
         );
       })}

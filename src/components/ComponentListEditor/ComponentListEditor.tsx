@@ -100,6 +100,25 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
     [wrappedSetValue],
   );
 
+  const replaceComponent = useMemo(() => {
+    let index = -1;
+    return (
+      oldId: string,
+      newValue: StoredComponentEntity | ComponentLink<string>,
+    ) => {
+      const newComponents = Array.from(propsRef.current.slot.components);
+      if (index >= newComponents.length || index < 0 || newComponents[index].id !== oldId) {
+        index = newComponents.findIndex((c) => c.id === oldId);
+      }
+      if (index !== -1) {
+        newComponents[index] = newValue;
+        return wrappedSetValue(newComponents);
+      }
+      newComponents.push(newValue);
+      return wrappedSetValue(newComponents);
+    };
+  }, [wrappedSetValue]);
+
   const baseIid = useMemo(() => {
     return pathToString([
       { index: propsRef.current.index, id: propsRef.current.id },
@@ -146,15 +165,13 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
         setter<Key extends ComponentTypeName>(
           newEntity: StoredComponentData<ComponentDataByTypeName<Key>, Key>,
         ) {
-          const newValue = [...value];
-          newValue[index] = newEntity as StoredComponentEntity;
-          return wrappedSetValue(newValue);
+          return replaceComponent(component.id, newEntity as StoredComponentEntity);
         },
       };
     });
     oldMappedItems.current = val;
     return val;
-  }, [wrappedSetValue, value]);
+  }, [value, replaceComponent]);
 
   const setListValue = useCallback(
     (newValue: typeof mappedItems) => {
@@ -177,7 +194,6 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
       }
     >
       {<ComponentType extends ComponentTypeName>({
-        items,
         item,
         index,
         isDisabled,
@@ -217,9 +233,11 @@ export default function ComponentListEditor<LayoutType extends LayoutTypeName>(
               allContentTypes={allContentTypes}
               isDisabled={isDisabled}
               onRemove={() =>
-                wrappedSetValue(value.filter(({ id }) => id !== item.id)).then(() => {
-                  sdk.entry.save();
-                })
+                wrappedSetValue(value.filter(({ id }) => id !== item.id)).then(
+                  () => {
+                    sdk.entry.save();
+                  },
+                )
               }
             />
           );

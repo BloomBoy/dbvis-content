@@ -1,4 +1,4 @@
-import LayoutListEditor from './ComponentListEditor';
+import ComponentListEditor from './ComponentListEditor';
 export { default as ComponentActions } from './ComponentActions';
 
-export default LayoutListEditor;
+export default ComponentListEditor;

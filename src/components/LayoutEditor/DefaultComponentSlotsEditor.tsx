@@ -1,13 +1,27 @@
 import {
+  Accordion,
   Box,
   Button,
+  HeadingElement,
   IconButton,
   Paragraph,
   SectionHeading,
   Stack,
+  Subheading,
 } from '@contentful/f36-components';
 import { PlusIcon, DeleteIcon } from '@contentful/f36-icons';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  isValidElement,
+  Children,
+  DetailedHTMLProps,
+  forwardRef,
+  HTMLAttributes,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  cloneElement,
+} from 'react';
 import useSubFields from '../../hooks/useSubFields';
 import {
   ComponentContainer,
@@ -22,6 +36,73 @@ import * as styles from '../ComponentEditor/styles';
 import ComponentListEditor from '../ComponentListEditor';
 import { SerializedJSONValue } from '@contentful/app-sdk';
 import { pathToString } from '../../utils/deepValue';
+import { css, cx } from 'emotion';
+
+const MakeTitleComponent = ({
+  as = 'h2',
+  onDelete,
+  singularSlotName,
+}: {
+  as?: HeadingElement;
+  onDelete?: () => void;
+  singularSlotName: string;
+}) =>
+  forwardRef<HTMLHeadingElement>(
+    (
+      {
+        children,
+        ...props
+      }: DetailedHTMLProps<
+        HTMLAttributes<HTMLHeadingElement>,
+        HTMLHeadingElement
+      >,
+      ref,
+    ) => {
+      const El = as;
+      if (onDelete == null || !isValidElement(children)) {
+        return <El>{children}</El>;
+      }
+      const [chevron, ...grandChildren] = Children.toArray(
+        children.props.children,
+      );
+      return (
+        <El {...props} ref={ref}>
+          {cloneElement(
+            children,
+            undefined,
+            chevron,
+            <IconButton
+              aria-hidden
+              tabIndex={-1}
+              className={styles.accordionButton}
+              icon={<DeleteIcon variant="negative" />}
+              title={`Delete ${singularSlotName}`}
+              aria-label={`Delete ${singularSlotName}`}
+            />,
+            ...grandChildren,
+          )}
+          <div
+            className={cx(children.props.className, styles.mockAccordionHeader)}
+          >
+            {isValidElement(chevron)
+              ? cloneElement(chevron, {
+                  className: cx(chevron.props.className, styles.mockChevron),
+                } as any)
+              : chevron}
+            <IconButton
+              onClick={(ev: React.MouseEvent) => {
+                onDelete();
+              }}
+              className={styles.accordionButton}
+              icon={<DeleteIcon variant="negative" />}
+              title={`Delete ${singularSlotName}`}
+              aria-label={`Delete ${singularSlotName}`}
+            />
+          </div>
+        </El>
+      );
+    },
+  ) as unknown as HeadingElement;
 
 export function SlotEditor<LayoutType extends LayoutTypeName>(
   props: FullLayoutProps<
@@ -94,7 +175,11 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(
 
   const subFields = useSubFields(definition.componentContainerFields);
   const fieldId = useMemo(() => {
-    return pathToString([{ index, id }, 'slots', { index: slotIndex, id: slot.id }]);
+    return pathToString([
+      { index, id },
+      'slots',
+      { index: slotIndex, id: slot.id },
+    ]);
   }, [index, id, slotIndex, slot.id]);
 
   const subFieldsWithSetter = useMemo(() => {
@@ -107,6 +192,58 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(
       };
     });
   }, [subFields, setFieldValue]);
+
+  const titleWithDelete = useMemo(
+    () =>
+      MakeTitleComponent({
+        onDelete: onDelete != null ? handleOnRemove : undefined,
+        singularSlotName,
+      }),
+    [onDelete, handleOnRemove, singularSlotName],
+  );
+
+  if (props.inAccordion) {
+    return (
+      <>
+        {subFieldsWithSetter.length > 0 ? (
+          <>
+            <Accordion.Item
+              titleElement={titleWithDelete}
+              title={`${title} - Settings`}
+              className={styles.accordionItemWithButton}
+            >
+              {subFieldsWithSetter.map(({ key, subField, widget, setter }) => {
+                return (
+                  <SubField
+                    key={key}
+                    id={`${fieldId}.data`}
+                    sdk={sdk}
+                    setValue={setter}
+                    value={slot.data[key]}
+                    subField={subField}
+                    subFieldKey={key}
+                    widget={widget}
+                    helpText={subField.helpText}
+                  />
+                );
+              })}
+            </Accordion.Item>
+            <Accordion.Item title={`${title} - Components`}>
+              <ComponentListEditor {...props} />
+            </Accordion.Item>
+          </>
+        ) : (
+          <Accordion.Item
+            titleElement={titleWithDelete}
+            title={`${title} - Components`}
+            className={styles.accordionItemWithButton}
+          >
+            <ComponentListEditor {...props} />
+          </Accordion.Item>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -132,6 +269,7 @@ export function SlotEditor<LayoutType extends LayoutTypeName>(
             subField={subField}
             subFieldKey={key}
             widget={widget}
+            helpText={subField.helpText}
           />
         );
       })}
@@ -207,6 +345,51 @@ export default function DefaultComponentSlotEditor<
   /** No slots to display */
   if (configurableSlotCount === false || configurableSlotCount[1] === 0)
     return null;
+
+  if (props.inAccordion) {
+    return (
+      <>
+        <Box className={styles.accordionItemStyles} as="li">
+          <Subheading as="h2" marginBottom="none">
+            <Box
+              className={cx(
+                styles.accordionHeaderStyle,
+                css({
+                  backgroundColor: 'transparent !important',
+                  cursor: 'auto',
+                }),
+              )}
+            >
+              <Box>
+                {!isFull && (
+                  <Button
+                    variant="secondary"
+                    className={styles.action}
+                    startIcon={<PlusIcon />}
+                    size="small"
+                    onClick={onCreate}
+                    isDisabled={isCreating}
+                  >
+                    Add {singularSlotName}
+                  </Button>
+                )}
+              </Box>
+              {slotCount} {slotCount === 1 ? singularSlotName : pluralSlotName}
+            </Box>
+          </Subheading>
+        </Box>
+        {props.slots.map((slot, slotIndex) => (
+          <SlotEditor
+            {...props}
+            key={slot.id}
+            slot={slot}
+            slotIndex={slotIndex}
+            onDelete={canDelete ? deleteSlot : null}
+          />
+        ))}
+      </>
+    );
+  }
 
   return (
     <>

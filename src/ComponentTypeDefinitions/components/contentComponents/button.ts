@@ -1,7 +1,7 @@
-import { AlignmentData, alignmentFields } from '../../shared';
-import makeComponent from '../../utils/makeComponent';
+import { TailwindData, tailwindClassFields } from '../../../shared';
+import makeComponent from '../../../utils/makeComponent';
 
-interface ButtonData extends AlignmentData {
+interface ButtonData extends TailwindData {
   buttonText: string;
   target: string;
 };
@@ -14,7 +14,7 @@ const Button = makeComponent<ButtonData>({
       title: 'Button Text',
       required: true,
     },
-    ...alignmentFields,
+    ...tailwindClassFields,
     target: [
       {
         type: 'Symbol',

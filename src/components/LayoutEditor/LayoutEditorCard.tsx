@@ -79,7 +79,13 @@ export default function LayoutEditorCard<T extends LayoutTypeName>(
   };
 
   let title: string;
-  if (layout.title == null) {
+  if (
+    typeof (item.data as { _internalTitle?: unknown })._internalTitle ===
+      'string' &&
+    (item.data as { _internalTitle?: unknown })._internalTitle
+  ) {
+    title = (item.data as { _internalTitle?: string })._internalTitle || '';
+  } else if (layout.title == null) {
     title = '';
   } else if (typeof layout.title === 'function') {
     title = layout.title(childProps) || '';
@@ -88,7 +94,7 @@ export default function LayoutEditorCard<T extends LayoutTypeName>(
       (item.data[layout.title] != null && String(item.data[layout.title])) ||
       '';
   }
-  title = title || `${layout.name || item.type}(${item.id})`;
+  title = title || `Unnamed ${layout.name || item.type} layout [id:${item.id}]`;
 
   const handleOnRemove = useCallback(() => {
     sdk.dialogs
@@ -187,7 +193,7 @@ export default function LayoutEditorCard<T extends LayoutTypeName>(
 
   return (
     <EntryCard
-      contentType={layout.name}
+      contentType={`${layout.name} layout`}
       icon={
         <>
           {actions
@@ -229,7 +235,9 @@ export default function LayoutEditorCard<T extends LayoutTypeName>(
       dragHandleRender={renderDragHandle}
       withDragHandle={!!renderDragHandle}
     >
-      {RenderQuickSettings && <RenderQuickSettings {...childProps} />}
+      {RenderQuickSettings && (
+        <RenderQuickSettings {...childProps} title={title} />
+      )}
     </EntryCard>
   );
 }

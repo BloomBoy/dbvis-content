@@ -33,7 +33,6 @@ import { DefaultModal } from '../components/LayoutEditor';
 import { fromEntries } from '../utils/objects';
 import { css } from 'emotion';
 import tokens from '@contentful/f36-tokens';
-import throttle from 'lodash/throttle';
 
 type OptionalIds = Exclude<keyof IdsAPI, keyof DialogExtensionSDK['ids']>;
 
@@ -94,31 +93,11 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
   const { sdk, layout, layoutDefinition, onRemove, layoutIndex } = props;
   const dialogueSdk = useSDK<DialogExtensionSDK>();
   const propsRef = useRef(props);
-  const [headerRef, setHeaderRef] = useState<HTMLDivElement | null>(null);
-  const [bodyRef, setBodyRef] = useState<HTMLDivElement | null>(null);
   propsRef.current = props;
 
   useEffect(() => {
-    if (!headerRef || !bodyRef) return;
-    const recalculateHeight = throttle(() => {
-      const height = headerRef.clientHeight + bodyRef.clientHeight + 1;
-      sdk.window.updateHeight(height);
-    }, 500);
-    recalculateHeight();
-    window.addEventListener('resize', recalculateHeight);
-
-    const headerObserver = new MutationObserver(recalculateHeight);
-    headerObserver.observe(headerRef, { childList: true, subtree: true });
-  
-    const bodyObserver = new MutationObserver(recalculateHeight);
-    bodyObserver.observe(bodyRef, { childList: true, subtree: true });
-
-    return () => {
-      window.removeEventListener('resize', recalculateHeight);
-      headerObserver.disconnect();
-      bodyObserver.disconnect();
-    };
-  }, [headerRef, bodyRef, sdk.window]);
+    sdk.window.updateHeight(10000);
+  }, [sdk.window]);
 
   const RenderModal = (
     layoutDefinition.renderModal == null ||
@@ -192,7 +171,13 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
   };
 
   let title: string;
-  if (layoutDefinition.title == null) {
+  if (
+    typeof (layout.data as { _internalTitle?: unknown })._internalTitle ===
+      'string' &&
+    (layout.data as { _internalTitle?: unknown })._internalTitle
+  ) {
+    title = (layout.data as { _internalTitle?: string })._internalTitle || '';
+  } else if (layoutDefinition.title == null) {
     title = '';
   } else if (typeof layoutDefinition.title === 'function') {
     title = layoutDefinition.title(layout as any) || '';
@@ -205,7 +190,7 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
         )) ||
       '';
   }
-  title = title || `${layoutDefinition.name || layout.type}(${layout.id})`;
+  title = title || `Unnamed ${layoutDefinition.name || layout.type} layout [id:${layout.id}]`;
 
   return (
     <Stack flexDirection="column" className={styles.editorWrapper} spacing="none">
@@ -214,7 +199,6 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
         alignItems="center"
         justifyContent="space-between"
         padding="spacingS"
-        ref={setHeaderRef}
       >
         <Heading as="h2" marginBottom="none">
           {title}
@@ -229,9 +213,7 @@ function RenderFullPage<LayoutType extends LayoutTypeName>(
         </Stack>
       </Stack>
       <Box className={styles.editorBody}>
-        <Box ref={setBodyRef}>
-          <RenderModal {...fullLayoutProps} />
-        </Box>
+        <RenderModal {...fullLayoutProps} />
       </Box>
     </Stack>
   );
@@ -278,7 +260,13 @@ function PageLayoutEditorDialogue({
       layoutRef.current.type
     ] as LayoutTypeDefByTypeName<typeof layoutRef.current.type>;
     let title: string;
-    if (layoutDef.title == null) {
+    if (
+      typeof (layoutRef.current.data as { _internalTitle?: unknown })._internalTitle ===
+        'string' &&
+      (layoutRef.current.data as { _internalTitle?: unknown })._internalTitle
+    ) {
+      title = (layoutRef.current.data as { _internalTitle?: string })._internalTitle || '';
+    } else if (layoutDef.title == null) {
       title = '';
     } else if (typeof layoutDef.title === 'function') {
       title = layoutDef.title(layoutRef.current as any) || '';

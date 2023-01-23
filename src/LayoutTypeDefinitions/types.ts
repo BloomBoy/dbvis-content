@@ -13,6 +13,7 @@ export type AppProps<LayoutData, ContainerData, Type extends `${string}Layout`> 
     drag: React.ReactElement<any, string | React.JSXElementConstructor<any>>;
   }): JSX.Element;
   sdk: FieldExtensionSDK;
+  inAccordion?: boolean;
 };
 
 export interface ComponentContainer<ContainerData> {
@@ -40,7 +41,7 @@ export interface LayoutTypeDef<LayoutData, ContainerData, Type extends `${string
     | React.ComponentType<FullLayoutProps<LayoutData, ContainerData, Type>>
     | boolean;
   renderQuickSettings?:
-    | React.ComponentType<FullLayoutProps<LayoutData, ContainerData, Type>>
+    | React.ComponentType<FullLayoutProps<LayoutData, ContainerData, Type> & { title: string; }>
     | boolean;
   renderSlotsEditor?:
     | React.ComponentType<FullLayoutProps<LayoutData, ContainerData, Type>>

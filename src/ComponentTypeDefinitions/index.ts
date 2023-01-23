@@ -1,9 +1,13 @@
 import { FieldExtensionSDK } from '@contentful/app-sdk';
 import { Link } from 'contentful-management';
 import { FieldMap } from '../shared';
+import titleFromKey from '../utils/titleFromKey';
 import * as rawComponents from './components';
 
-export type StoredComponentData<ComponentData, Type extends `${string}Component`> = {
+export type StoredComponentData<
+  ComponentData,
+  Type extends `${string}Component`,
+> = {
   id: string;
   type: Type;
   data: Partial<ComponentData>;
@@ -24,7 +28,10 @@ function configureComponents<
   },
 >(component: T) {
   return component as unknown as {
-    [key in keyof T & `${string}Component`]: T[key] extends ComponentDef<infer Data, `${string}Component`>
+    [key in keyof T & `${string}Component`]: T[key] extends ComponentDef<
+      infer Data,
+      `${string}Component`
+    >
       ? ComponentDef<Data, key>
       : T[key];
   };
@@ -77,6 +84,66 @@ export type ComponentDataMap = {
 export type ComponentTypeName = keyof typeof components;
 
 export const COMPONENT_TYPES = Object.keys(components) as ComponentTypeName[];
+
+export type ComponentGroup = {
+  name: string;
+  sort: <
+    T extends {
+      def: ComponentDef<any, any>;
+      type: string;
+    },
+  >(
+    a: T,
+    b: T,
+  ) => number;
+  types: ComponentTypeName[];
+};
+
+export const alphabeticalComponentSort: ComponentGroup['sort'] = (a, b) => {
+  const nameA = a.def.name || titleFromKey(a.type);
+  const nameB = b.def.name || titleFromKey(b.type);
+  return nameA.localeCompare(nameB);
+};
+
+export const COMPONENT_GROUPS: ComponentGroup[] = [
+  {
+    name: 'Manual content',
+    sort: alphabeticalComponentSort,
+    types: [
+      'buttonComponent',
+      'textComponent',
+      'badgeComponent',
+      'imageComponent',
+      'titleComponent',
+      'imageButtonComponent',
+    ],
+  },
+  {
+    name: 'Injected content',
+    sort: alphabeticalComponentSort,
+    types: [
+      'databaseSearchComponent',
+      'downloadButtonComponent',
+      'emailSignupFormComponent',
+      'layoutTitleComponent',
+      'reviewSourcesComponent',
+      'userReviewsComponent',
+    ],
+  },
+  {
+    name: 'Release Components',
+    sort: alphabeticalComponentSort,
+    types: [
+      'allInstallersComponent',
+      'recommendedInstallersComponent',
+      'releasenotesComponent',
+      'releaseQuickLinksComponent',
+      'installationInstructionsComponent',
+      'versionSelectorComponent',
+      'systemRequirementsComponent',
+    ],
+  },
+];
 
 export type ComponentDataByTypeName<Type extends ComponentTypeName> =
   typeof components[Type] extends ComponentDef<infer Data, Type> ? Data : never;

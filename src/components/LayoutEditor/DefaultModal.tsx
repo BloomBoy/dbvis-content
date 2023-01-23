@@ -1,11 +1,31 @@
-import { Stack } from "@contentful/f36-components";
-import { Dispatch, SetStateAction, useCallback, useMemo, useRef } from "react";
-import DefaultComponentSlotsEditor from "./DefaultComponentSlotsEditor";
-import { LayoutTypeName, FullLayoutProps, LayoutDataByTypeName, LayoutContainerDataByTypeName } from "../../LayoutTypeDefinitions";
-import SubField from "../SubField";
-import useSubFields from "../../hooks/useSubFields";
-import { pathToString } from "../../utils/deepValue";
-import { SerializedJSONValue } from "@contentful/app-sdk";
+import { Accordion, Box, Stack } from '@contentful/f36-components';
+import { Dispatch, SetStateAction, useCallback, useMemo, useRef } from 'react';
+import DefaultComponentSlotsEditor from './DefaultComponentSlotsEditor';
+import {
+  LayoutTypeName,
+  FullLayoutProps,
+  LayoutDataByTypeName,
+  LayoutContainerDataByTypeName,
+} from '../../LayoutTypeDefinitions';
+import SubField from '../SubField';
+import useSubFields from '../../hooks/useSubFields';
+import { pathToString } from '../../utils/deepValue';
+import { SerializedJSONValue } from '@contentful/app-sdk';
+import { css } from 'emotion';
+import attachInternalTitle from '../../utils/attachInternalTitle';
+
+const styles = {
+  accordion: css({
+    '&:first-child': {
+      borderTop: 'none',
+    },
+  }),
+  accordionItem: css({
+    '&:first-child': {
+      borderTop: 'none',
+    },
+  }),
+};
 
 export default function DefaultModal<LayoutType extends LayoutTypeName>({
   open,
@@ -19,13 +39,7 @@ export default function DefaultModal<LayoutType extends LayoutTypeName>({
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
 }): JSX.Element {
-  const {
-    id,
-    sdk,
-    definition,
-    index,
-    data,
-  } = props;
+  const { id, sdk, definition, index, data } = props;
   const subFields = useSubFields(definition.subFields);
   const fieldId = useMemo(() => {
     return pathToString([{ index, id }]);
@@ -51,7 +65,7 @@ export default function DefaultModal<LayoutType extends LayoutTypeName>({
   );
 
   const subFieldsWithSetter = useMemo(() => {
-    return subFields.map((props) => {
+    return attachInternalTitle(subFields).map((props) => {
       return {
         ...props,
         setter<Value = any>(value: Value) {
@@ -62,27 +76,33 @@ export default function DefaultModal<LayoutType extends LayoutTypeName>({
   }, [subFields, setFieldValue]);
 
   const RenderComponentSlotsEditor =
-    definition.renderSlotsEditor == null || definition.renderSlotsEditor === true
+    definition.renderSlotsEditor == null ||
+    definition.renderSlotsEditor === true
       ? DefaultComponentSlotsEditor
       : definition.renderSlotsEditor;
 
   return (
-    <Stack flexDirection="column" alignItems="stretch" padding="spacingS">
-      {subFieldsWithSetter.map(({ key, subField, widget, setter }) => {
-        return (
-          <SubField
-            key={key}
-            id={`${fieldId}.data`}
-            sdk={sdk}
-            setValue={setter}
-            value={data[key]}
-            subField={subField}
-            subFieldKey={key}
-            widget={widget}
-          />
-        );
-      })}
-      {RenderComponentSlotsEditor && <RenderComponentSlotsEditor {...props} />}
-    </Stack>
+    <Accordion className={styles.accordion}>
+      <Accordion.Item className={styles.accordionItem} title="Layout Settings">
+        {subFieldsWithSetter.map(({ key, subField, widget, setter }) => {
+          return (
+            <SubField
+              key={key}
+              id={`${fieldId}.data`}
+              sdk={sdk}
+              setValue={setter}
+              value={data[key]}
+              subField={subField}
+              subFieldKey={key}
+              widget={widget}
+              helpText={subField.helpText}
+            />
+          );
+        })}
+      </Accordion.Item>
+      {RenderComponentSlotsEditor && (
+        <RenderComponentSlotsEditor {...props} inAccordion />
+      )}
+    </Accordion>
   );
 }

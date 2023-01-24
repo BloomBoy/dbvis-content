@@ -4,6 +4,7 @@ import makeComponent from '../../../utils/makeComponent';
 interface EmailSignupFormData extends TailwindData {
   termsText: object;
   buttonText: string;
+  placeholderText: string;
 }
 
 const EmailSignupForm = makeComponent<EmailSignupFormData>({
@@ -12,6 +13,7 @@ const EmailSignupForm = makeComponent<EmailSignupFormData>({
     ...tailwindClassFields,
     termsText: 'RichText',
     buttonText: 'Symbol',
+    placeholderText: 'Symbol',
   },
 });
 
